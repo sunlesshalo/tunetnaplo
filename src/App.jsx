@@ -10,18 +10,28 @@ const LS_KEYS = {
 const todayISO = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const DEFAULT_SYMPTOMS = [
-  { id: uid(), name: "Láz", emoji: "🤒" },
-  { id: uid(), name: "Nátha", emoji: "🤧" },
-  { id: uid(), name: "Fejfájás", emoji: "🤕" },
-  { id: uid(), name: "Hányinger", emoji: "🤢" },
-  { id: uid(), name: "Szédülés", emoji: "😵" },
-];
+const DEFAULT_SYMPTOMS = [];
 
-// A könnyű emoji választó – gyakori készlet
+// Expanded emoji selection - health and symptom related
 const EMOJI_SET = [
-  "😀", "🙂", "😊", "😌", "🤒", "🤧", "🤕", "🤢", "🤮", "🤯", "😵", "🥶", "🥵", "🤧", "😴",
-  "🤧", "🤒", "😖", "😫", "🤒", "🤕", "😟", "😞", "😣", "😮‍💨", "🤒", "🤧", "🤕",
+  // Medical/Health
+  "🤒", "🤕", "🤧", "🤢", "🤮", "😷", "🩹", "💊", "💉", "🌡️",
+  // Pain/Discomfort
+  "😖", "😣", "😫", "😩", "😵", "🥴", "😪", "😴", "🥱", "😮‍💨",
+  // Temperature
+  "🥵", "🥶", "🔥", "❄️", "💧",
+  // Digestive
+  "🤰", "🍽️", "🚽", "💩",
+  // Breathing/Respiratory
+  "😮", "😤", "💨", "🫁",
+  // Mental/Mood
+  "😰", "😥", "😓", "😔", "😞", "😢", "😭", "😱", "😨", "😧",
+  // Energy
+  "😑", "😶", "🫥", "😐", "😬", "🥺", "😟", "🙁", "☹️",
+  // Body parts
+  "👁️", "👂", "👃", "👄", "🦷", "🫀", "🫁", "🧠", "🦴", "👣",
+  // General
+  "⚡", "💫", "⭐", "✨", "💥", "🔴", "🟠", "🟡", "🟢", "🔵",
 ];
 
 // --- Main App ---
@@ -71,6 +81,14 @@ export default function App() {
     closeLogModal();
   };
 
+  const deleteSymptom = (symptomId) => {
+    if (window.confirm("Biztosan törölni szeretnéd ezt a tünetet?")) {
+      setSymptoms((prev) => prev.filter((s) => s.id !== symptomId));
+      // Also remove all entries for this symptom
+      setEntries((prev) => prev.filter((e) => e.symptomId !== symptomId));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
       <Header />
@@ -80,7 +98,11 @@ export default function App() {
           <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} />
         )}
         {tab === 1 && (
-          <AddSymptomTab onAdd={(s) => setSymptoms((prev) => [s, ...prev])} />
+          <AddSymptomTab
+            onAdd={(s) => setSymptoms((prev) => [s, ...prev])}
+            symptoms={symptoms}
+            onDelete={deleteSymptom}
+          />
         )}
         {tab === 2 && <StatsTab entries={entries} symptoms={symptoms} />}
       </main>
@@ -204,9 +226,9 @@ function SectionTitle({ title, subtitle }) {
 }
 
 // --- Add Symptom Tab ---
-function AddSymptomTab({ onAdd }) {
+function AddSymptomTab({ onAdd, symptoms, onDelete }) {
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🙂");
+  const [emoji, setEmoji] = useState("🤒");
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const submit = (e) => {
@@ -215,11 +237,11 @@ function AddSymptomTab({ onAdd }) {
     if (!trimmed) return;
     onAdd({ id: uid(), name: trimmed, emoji });
     setName("");
-    setEmoji("🙂");
+    setEmoji("🤒");
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <SectionTitle title="Új tünet hozzáadása" subtitle="Adj nevet és válassz ikont (emoji)." />
 
       <form onSubmit={submit} className="space-y-4">
@@ -253,7 +275,7 @@ function AddSymptomTab({ onAdd }) {
                 key={idx}
                 type="button"
                 onClick={() => { setEmoji(e); setPickerOpen(false); }}
-                className="text-2xl p-1 rounded-lg hover:bg-slate-100"
+                className="text-2xl p-1 rounded-lg hover:bg-slate-100 active:bg-slate-200"
               >
                 {e}
               </button>
@@ -268,6 +290,31 @@ function AddSymptomTab({ onAdd }) {
           Hozzáadás
         </button>
       </form>
+
+      {symptoms.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-600">Meglévő tünetek</h3>
+          <div className="space-y-2">
+            {symptoms.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{s.emoji}</span>
+                  <span className="font-medium">{s.name}</span>
+                </div>
+                <button
+                  onClick={() => onDelete(s.id)}
+                  className="text-red-500 hover:text-red-700 px-3 py-1 rounded-lg hover:bg-red-50 text-sm font-medium"
+                >
+                  Törlés
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <HintCard />
     </div>
