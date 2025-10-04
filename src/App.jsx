@@ -58,11 +58,13 @@ export default function App() {
   const [activeSymptom, setActiveSymptom] = useState(null); // symptom object
   const [intensity, setIntensity] = useState(5);
   const [note, setNote] = useState("");
+  const [duration, setDuration] = useState(""); // in minutes, optional
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
     setIntensity(5);
     setNote("");
+    setDuration("");
   };
   const closeLogModal = () => setActiveSymptom(null);
 
@@ -75,6 +77,7 @@ export default function App() {
       timestamp: now.toISOString(),
       symptomId: activeSymptom.id,
       intensity: Number(intensity),
+      duration: duration ? Number(duration) : null, // null if not specified
       note: note.trim(),
     };
     setEntries((prev) => [entry, ...prev]);
@@ -114,6 +117,8 @@ export default function App() {
           symptom={activeSymptom}
           intensity={intensity}
           setIntensity={setIntensity}
+          duration={duration}
+          setDuration={setDuration}
           note={note}
           setNote={setNote}
           onClose={closeLogModal}
@@ -201,17 +206,35 @@ function HomeTab({ symptoms, onLog, entries }) {
 
 function RecentEntry({ entry, symptoms }) {
   const s = symptoms.find((x) => x.id === entry.symptomId);
-  const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+
+  const formatDuration = (minutes) => {
+    if (!minutes) return null;
+    if (minutes < 60) return `${minutes} perc`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) return `${hours} óra`;
+    return `${hours}ó ${mins}p`;
+  };
+
   return (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{s?.emoji ?? "❓"}</span>
-        <div>
-          <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
-          <div className="text-xs text-slate-500">{entry.date} • {time}</div>
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{s?.emoji ?? "❓"}</span>
+          <div>
+            <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
+            <div className="text-xs text-slate-500">
+              {time}
+              {entry.duration && <> • {formatDuration(entry.duration)}</>}
+            </div>
+          </div>
         </div>
+        <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold">{entry.intensity}</span>
       </div>
-      <span className="text-sm px-2 py-1 rounded-lg bg-sky-100">Erősség: <b>{entry.intensity}</b></span>
+      {entry.note && (
+        <div className="text-xs text-slate-600 mt-2 pl-11 italic">"{entry.note}"</div>
+      )}
     </div>
   );
 }
@@ -404,11 +427,19 @@ function PerSymptomBreakdown({ entries, symptoms }) {
 }
 
 // --- Log Modal ---
-function LogModal({ symptom, intensity, setIntensity, note, setNote, onClose, onSave }) {
+function LogModal({ symptom, intensity, setIntensity, duration, setDuration, note, setNote, onClose, onSave }) {
+  const durationPresets = [
+    { label: "5 perc", value: 5 },
+    { label: "15 perc", value: 15 },
+    { label: "30 perc", value: 30 },
+    { label: "1 óra", value: 60 },
+    { label: "2+ óra", value: 120 },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-      <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl p-4">
-        <div className="flex items-center gap-3 mb-2">
+      <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl p-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center gap-3 mb-3">
           <span className="text-3xl">{symptom.emoji}</span>
           <h3 className="text-lg font-semibold">{symptom.name}</h3>
         </div>
@@ -430,6 +461,33 @@ function LogModal({ symptom, intensity, setIntensity, note, setNote, onClose, on
             <span>0</span><span>5</span><span>10</span>
           </div>
         </label>
+
+        <div className="block mb-4">
+          <span className="text-sm font-medium">Időtartam (opcionális)</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {durationPresets.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                onClick={() => setDuration(preset.value.toString())}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
+                  duration === preset.value.toString()
+                    ? "bg-sky-500 text-white border-sky-500"
+                    : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            placeholder="Vagy írj percet..."
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+          />
+        </div>
 
         <label className="block mb-4">
           <span className="text-sm font-medium">Jegyzet (opcionális)</span>
