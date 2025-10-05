@@ -618,6 +618,7 @@ function RecentEntry({ entry, symptoms }) {
 
   const hasContext = context.mood || context.energy || context.activity || context.food || context.medication;
   const hasEnv = weather.condition || weather.temp || weather.pressure || env.location;
+  const hasMedia = (entry.photos && entry.photos.length > 0) || entry.voice_note;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -635,7 +636,7 @@ function RecentEntry({ entry, symptoms }) {
                 {entry.duration && <> • {formatDuration(entry.duration)}</>}
               </div>
             </div>
-            {(hasContext || hasEnv) && (
+            {(hasContext || hasEnv || hasMedia) && (
               <span className="text-slate-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
             )}
           </button>
@@ -647,7 +648,7 @@ function RecentEntry({ entry, symptoms }) {
       </div>
 
       {/* Expanded view */}
-      {isExpanded && (hasContext || hasEnv) && (
+      {isExpanded && (hasContext || hasEnv || hasMedia) && (
         <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-3">
           {/* Context section */}
           {hasContext && (
@@ -724,6 +725,35 @@ function RecentEntry({ entry, symptoms }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Photos section */}
+          {entry.photos && entry.photos.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-slate-700">📸 Fotók</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {entry.photos.map((photoPath, index) => (
+                  <img
+                    key={index}
+                    src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/symptom-photos/${photoPath}`}
+                    alt={`Symptom photo ${index + 1}`}
+                    className="w-full aspect-square object-cover rounded-lg"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Voice note section */}
+          {entry.voice_note && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvétel</h4>
+              <audio
+                controls
+                src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/voice-notes/${entry.voice_note}`}
+                className="w-full h-10"
+              />
             </div>
           )}
         </div>
