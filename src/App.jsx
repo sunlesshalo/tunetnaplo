@@ -702,7 +702,7 @@ function AddSymptomTab({ onAdd, symptoms, onDelete }) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    onAdd({ id: uid(), name: trimmed, emoji, parentOnly });
+    onAdd({ name: trimmed, emoji, parentOnly });
     setName("");
     setEmoji("🤒");
     setParentOnly(false);

@@ -58,6 +58,7 @@ export function useSymptoms(userId) {
   // Add symptom
   const addSymptom = async (symptomData) => {
     try {
+      console.log('🔵 Adding symptom:', { user_id: userId, ...symptomData });
       const { data, error } = await supabase
         .from('symptoms')
         .insert([{
@@ -68,9 +69,10 @@ export function useSymptoms(userId) {
         .single();
 
       if (error) throw error;
+      console.log('✅ Symptom added successfully:', data);
       return { data, error: null };
     } catch (err) {
-      console.error('Error adding symptom:', err);
+      console.error('❌ Error adding symptom:', err);
       return { data: null, error: err.message };
     }
   };
