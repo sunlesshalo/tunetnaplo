@@ -536,16 +536,22 @@ function HomeTab({ symptoms, onLog, entries }) {
     <div className="space-y-6">
       <SectionTitle title="Ma milyen tünet volt?" subtitle="Koppints egy kártyára, majd állítsd be az erősséget." />
       <div className="grid grid-cols-2 gap-3">
-        {symptoms.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => onLog(s)}
-            className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition"
-          >
-            <span className="text-3xl" aria-hidden>{s.emoji}</span>
-            <span className="text-lg font-medium">{s.name}</span>
-          </button>
-        ))}
+        {symptoms.map((s) => {
+          // If name is long (>12 chars), make button span full width
+          const isLongName = s.name.length > 12;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onLog(s)}
+              className={`rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition ${
+                isLongName ? 'col-span-2' : ''
+              }`}
+            >
+              <span className="text-3xl flex-shrink-0" aria-hidden>{s.emoji}</span>
+              <span className="text-lg font-medium break-words">{s.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="pt-2">
