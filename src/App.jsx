@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
+import { useSymptoms, useEntries } from "./useSupabaseData";
 
 // --- Utility helpers ---
 const LS_KEYS = {
@@ -236,22 +237,23 @@ function ChildView({ session }) {
 // --- Parent View (Full Features) ---
 function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Export
-  const [symptoms, setSymptoms] = useState(() => {
-    const raw = localStorage.getItem(LS_KEYS.symptoms);
-    return raw ? JSON.parse(raw) : DEFAULT_SYMPTOMS;
-  });
-  const [entries, setEntries] = useState(() => {
-    const raw = localStorage.getItem(LS_KEYS.entries);
-    return raw ? JSON.parse(raw) : [];
-  });
 
-  // Persist
-  useEffect(() => {
-    localStorage.setItem(LS_KEYS.symptoms, JSON.stringify(symptoms));
-  }, [symptoms]);
-  useEffect(() => {
-    localStorage.setItem(LS_KEYS.entries, JSON.stringify(entries));
-  }, [entries]);
+  // Use Supabase hooks for data
+  const userId = session?.user?.id;
+  const {
+    symptoms,
+    loading: symptomsLoading,
+    addSymptom,
+    deleteSymptom: deleteSymptomDB
+  } = useSymptoms(userId);
+
+  const {
+    entries,
+    loading: entriesLoading,
+    addEntry,
+    updateEntry,
+    deleteEntry: deleteEntryDB
+  } = useEntries(userId);
 
   // Modal state
   const [activeSymptom, setActiveSymptom] = useState(null);
@@ -280,7 +282,7 @@ function ParentView({ session }) {
   };
 
   const openEditModal = (entry) => {
-    const symptom = symptoms.find((s) => s.id === entry.symptomId);
+    const symptom = symptoms.find((s) => s.id === (entry.symptom_id || entry.symptomId));
     setActiveSymptom(symptom);
     setEditingEntry(entry);
     setIntensity(entry.intensity);
@@ -302,59 +304,66 @@ function ParentView({ session }) {
   const saveEntry = async () => {
     if (!activeSymptom) return;
 
+    const contextData = {
+      mood: mood || null,
+      energy: energy || null,
+      activity: activity || null,
+      food: foodNote.trim() || null,
+      medication: medicationNote.trim() || null,
+    };
+
     if (editingEntry) {
       // Edit existing entry - preserve original timestamp and environment
-      const updatedEntry = {
-        ...editingEntry,
+      const { error } = await updateEntry(editingEntry.id, {
         intensity: Number(intensity),
         duration: duration ? Number(duration) : null,
         note: note.trim(),
-        context: {
-          mood: mood || null,
-          energy: energy || null,
-          activity: activity || null,
-          food: foodNote.trim() || null,
-          medication: medicationNote.trim() || null,
-        },
-      };
-      setEntries((prev) => prev.map((e) => (e.id === editingEntry.id ? updatedEntry : e)));
+        context: contextData,
+      });
+
+      if (error) {
+        alert(`Hiba a módosításnál: ${error}`);
+        return;
+      }
     } else {
       // Create new entry
       const now = new Date();
       const environment = await captureEnvironment();
 
-      const entry = {
-        id: uid(),
+      const { error } = await addEntry({
         date: todayISO(),
         timestamp: now.toISOString(),
-        symptomId: activeSymptom.id,
+        symptom_id: activeSymptom.id,
         intensity: Number(intensity),
         duration: duration ? Number(duration) : null,
         note: note.trim(),
-        environment, // Auto-captured weather/location/pressure
-        context: {
-          mood: mood || null,
-          energy: energy || null,
-          activity: activity || null,
-          food: foodNote.trim() || null,
-          medication: medicationNote.trim() || null,
-        },
-      };
-      setEntries((prev) => [entry, ...prev]);
+        environment,
+        context: contextData,
+      });
+
+      if (error) {
+        alert(`Hiba a mentésnél: ${error}`);
+        return;
+      }
     }
     closeLogModal();
   };
 
-  const deleteSymptom = (symptomId) => {
+  const deleteSymptom = async (symptomId) => {
     if (window.confirm("Biztosan törölni szeretnéd ezt a tünetet?")) {
-      setSymptoms((prev) => prev.filter((s) => s.id !== symptomId));
-      setEntries((prev) => prev.filter((e) => e.symptomId !== symptomId));
+      const { error } = await deleteSymptomDB(symptomId);
+      if (error) {
+        alert(`Hiba a törlésnél: ${error}`);
+      }
     }
   };
 
-  const deleteEntry = (entryId) => {
+  const deleteEntry = async (entryId) => {
     if (window.confirm("Biztosan törölni szeretnéd ezt a bejegyzést?")) {
-      setEntries((prev) => prev.filter((e) => e.id !== entryId));
+      const { error } = await deleteEntryDB(entryId);
+      if (error) {
+        alert(`Hiba a törlésnél: ${error}`);
+      }
     }
   };
 
@@ -368,7 +377,12 @@ function ParentView({ session }) {
         )}
         {tab === 1 && (
           <AddSymptomTab
-            onAdd={(s) => setSymptoms((prev) => [s, ...prev])}
+            onAdd={async (symptomData) => {
+              const { error } = await addSymptom(symptomData);
+              if (error) {
+                alert(`Hiba a tünet hozzáadásánál: ${error}`);
+              }
+            }}
             symptoms={symptoms}
             onDelete={deleteSymptom}
           />
@@ -537,7 +551,7 @@ function HomeTab({ symptoms, onLog, entries }) {
 
 function RecentEntry({ entry, symptoms }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const s = symptoms.find((x) => x.id === entry.symptomId);
+  const s = symptoms.find((x) => x.id === (entry.symptom_id || entry.symptomId));
   const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
   const context = entry.context || {};
   const env = entry.environment || {};
@@ -853,7 +867,7 @@ function PerSymptomBreakdown({ entries, symptoms }) {
   })();
 
   const per = symptoms.map((s) => {
-    const last7 = entries.filter((e) => e.symptomId === s.id && e.date >= startKey);
+    const last7 = entries.filter((e) => (e.symptom_id || e.symptomId) === s.id && e.date >= startKey);
     if (last7.length === 0) return { name: s.name, emoji: s.emoji, avg: 0 };
     const avg = Math.round((last7.reduce((a, b) => a + (b.intensity || 0), 0) / last7.length) * 10) / 10;
     return { name: s.name, emoji: s.emoji, avg };
@@ -898,7 +912,7 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
       ) : (
         <div className="space-y-2">
           {entries.map((entry) => {
-            const symptom = symptoms.find((s) => s.id === entry.symptomId);
+            const symptom = symptoms.find((s) => s.id === (entry.symptom_id || entry.symptomId));
             const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", {
               hour: "2-digit",
               minute: "2-digit",
@@ -1049,7 +1063,7 @@ function ExportTab({ entries, symptoms }) {
   const exportCSV = () => {
     const header = "Dátum,Idő,Tünet,Erősség,Időtartam (perc),Jegyzet,Hangulat,Energia,Tevékenység,Étel,Gyógyszer,Időszak,Hőmérséklet,Időjárás,Légnyomás,Helyszín\n";
     const rows = entries.map((e) => {
-      const s = symptoms.find((sym) => sym.id === e.symptomId);
+      const s = symptoms.find((sym) => sym.id === (e.symptom_id || e.symptomId));
       const time = new Date(e.timestamp).toLocaleTimeString("hu-HU", {
         hour: "2-digit",
         minute: "2-digit",
@@ -1104,7 +1118,7 @@ function ExportTab({ entries, symptoms }) {
             <tbody>
               ${entries
                 .map((e) => {
-                  const s = symptoms.find((sym) => sym.id === e.symptomId);
+                  const s = symptoms.find((sym) => sym.id === (e.symptom_id || e.symptomId));
                   const time = new Date(e.timestamp).toLocaleTimeString("hu-HU", {
                     hour: "2-digit",
                     minute: "2-digit",
