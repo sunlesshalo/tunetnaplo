@@ -1,8 +1,12 @@
 // Script to generate autoLoginConfig.js during Vercel build
 // This reads from environment variables and creates the config file
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const email = process.env.VITE_AUTO_LOGIN_EMAIL || '';
 const password = process.env.VITE_AUTO_LOGIN_PASSWORD || '';
