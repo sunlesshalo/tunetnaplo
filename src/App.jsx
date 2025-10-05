@@ -88,11 +88,38 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    const initAuth = async () => {
+      // Check current session
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        setSession(session);
+        setLoading(false);
+        return;
+      }
+
+      // Auto-login if credentials are configured
+      const autoEmail = import.meta.env.VITE_AUTO_LOGIN_EMAIL;
+      const autoPassword = import.meta.env.VITE_AUTO_LOGIN_PASSWORD;
+
+      if (autoEmail && autoPassword && autoEmail !== 'your-email@example.com') {
+        console.log('🔐 Auto-logging in...');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: autoEmail,
+          password: autoPassword,
+        });
+
+        if (error) {
+          console.error('Auto-login failed:', error.message);
+        } else {
+          setSession(data.session);
+        }
+      }
+
       setLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
     const {
@@ -129,32 +156,16 @@ export default function App() {
 
 // --- Child View (Simplified) ---
 function ChildView({ session }) {
-  const [symptoms, setSymptoms] = useState(() => {
-    const raw = localStorage.getItem(LS_KEYS.symptoms);
-    const all = raw ? JSON.parse(raw) : DEFAULT_SYMPTOMS;
-    // Only show symptoms NOT marked as parentOnly
-    return all.filter(s => !s.parentOnly);
-  });
-  const [entries, setEntries] = useState(() => {
-    const raw = localStorage.getItem(LS_KEYS.entries);
-    return raw ? JSON.parse(raw) : [];
-  });
+  const userId = session?.user?.id;
 
-  // Persist entries only (symptoms managed by parent)
-  useEffect(() => {
-    localStorage.setItem(LS_KEYS.entries, JSON.stringify(entries));
-  }, [entries]);
+  // Use Supabase hooks for data
+  const { symptoms: allSymptoms, loading: symptomsLoading } = useSymptoms(userId);
+  const { entries, loading: entriesLoading, addEntry } = useEntries(userId);
 
-  // Reload symptoms when they change (from parent view)
-  useEffect(() => {
-    const handleStorage = () => {
-      const raw = localStorage.getItem(LS_KEYS.symptoms);
-      const all = raw ? JSON.parse(raw) : DEFAULT_SYMPTOMS;
-      setSymptoms(all.filter(s => !s.parentOnly));
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+  // Filter out parent-only symptoms
+  const symptoms = useMemo(() => {
+    return allSymptoms.filter(s => !s.parentOnly);
+  }, [allSymptoms]);
 
   // Modal state for quick log
   const [activeSymptom, setActiveSymptom] = useState(null);
@@ -184,22 +195,27 @@ function ChildView({ session }) {
     // Capture environmental context automatically
     const environment = await captureEnvironment();
 
-    const entry = {
-      id: uid(),
+    const contextData = {
+      mood: mood || null,
+      energy: energy || null,
+      activity: activity || null,
+    };
+
+    const { error } = await addEntry({
       date: todayISO(),
       timestamp: now.toISOString(),
-      symptomId: activeSymptom.id,
+      symptom_id: activeSymptom.id,
       intensity: Number(intensity),
       duration: duration ? Number(duration) : null,
       note: note.trim(),
-      environment, // Auto-captured weather/location/pressure
-      context: {
-        mood: mood || null,
-        energy: energy || null,
-        activity: activity || null,
-      },
-    };
-    setEntries((prev) => [entry, ...prev]);
+      environment,
+      context: contextData,
+    });
+
+    if (error) {
+      alert(`Hiba a mentésnél: ${error}`);
+    }
+
     closeLogModal();
   };
 
