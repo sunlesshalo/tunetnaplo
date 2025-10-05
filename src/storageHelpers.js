@@ -41,14 +41,21 @@ export async function uploadPhoto(file, userId) {
  */
 export async function uploadVoiceNote(audioBlob, userId) {
   try {
-    const fileName = `${userId}/${Date.now()}-voice.webm`;
+    // Determine file extension from blob type
+    const mimeType = audioBlob.type;
+    let ext = 'webm';
+    if (mimeType.includes('mp4')) ext = 'mp4';
+    else if (mimeType.includes('ogg')) ext = 'ogg';
+    else if (mimeType.includes('wav')) ext = 'wav';
+
+    const fileName = `${userId}/${Date.now()}-voice.${ext}`;
 
     const { data, error } = await supabase.storage
       .from('voice-notes')
       .upload(fileName, audioBlob, {
         cacheControl: '3600',
         upsert: false,
-        contentType: 'audio/webm'
+        contentType: mimeType
       });
 
     if (error) throw error;
