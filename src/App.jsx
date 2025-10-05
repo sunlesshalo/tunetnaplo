@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { supabase } from "./supabaseClient";
+import Auth from "./Auth";
 
 // --- Utility helpers ---
 const LS_KEYS = {
@@ -31,19 +33,21 @@ const captureEnvironment = async () => {
     };
 
     // Weather data (OpenWeatherMap free tier)
-    const API_KEY = "YOUR_API_KEY"; // User will need to add their own
-    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${env.location.lat}&lon=${env.location.lng}&appid=${API_KEY}&units=metric&lang=hu`;
+    const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+    if (API_KEY && API_KEY !== 'YOUR_OPENWEATHER_API_KEY') {
+      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${env.location.lat}&lon=${env.location.lng}&appid=${API_KEY}&units=metric&lang=hu`;
 
-    const weatherResponse = await fetch(weatherUrl);
-    if (weatherResponse.ok) {
-      const weatherData = await weatherResponse.json();
-      env.weather = {
-        condition: weatherData.weather[0].description,
-        temp: Math.round(weatherData.main.temp),
-        humidity: weatherData.main.humidity,
-        pressure: weatherData.main.pressure,
-        city: weatherData.name,
-      };
+      const weatherResponse = await fetch(weatherUrl);
+      if (weatherResponse.ok) {
+        const weatherData = await weatherResponse.json();
+        env.weather = {
+          condition: weatherData.weather[0].description,
+          temp: Math.round(weatherData.main.temp),
+          humidity: weatherData.main.humidity,
+          pressure: weatherData.main.pressure,
+          city: weatherData.name,
+        };
+      }
     }
   } catch (error) {
     console.log("Could not capture environment:", error);
@@ -79,16 +83,51 @@ const EMOJI_SET = [
 
 // --- Main App with Routing ---
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🧸</div>
+          <p className="text-slate-600">Betöltés...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
+
   return (
     <Routes>
-      <Route path="/" element={<ChildView />} />
-      <Route path="/szulo" element={<ParentView />} />
+      <Route path="/" element={<ChildView session={session} />} />
+      <Route path="/szulo" element={<ParentView session={session} />} />
     </Routes>
   );
 }
 
 // --- Child View (Simplified) ---
-function ChildView() {
+function ChildView({ session }) {
   const [symptoms, setSymptoms] = useState(() => {
     const raw = localStorage.getItem(LS_KEYS.symptoms);
     const all = raw ? JSON.parse(raw) : DEFAULT_SYMPTOMS;
@@ -165,7 +204,7 @@ function ChildView() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
-      <Header isChild={true} />
+      <Header isChild={true} session={session} />
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-6">
         <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} />
       </main>
@@ -195,7 +234,7 @@ function ChildView() {
 }
 
 // --- Parent View (Full Features) ---
-function ParentView() {
+function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Export
   const [symptoms, setSymptoms] = useState(() => {
     const raw = localStorage.getItem(LS_KEYS.symptoms);
@@ -321,7 +360,7 @@ function ParentView() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
-      <Header isChild={false} />
+      <Header isChild={false} session={session} />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">
         {tab === 0 && (
@@ -371,7 +410,11 @@ function ParentView() {
   );
 }
 
-function Header({ isChild }) {
+function Header({ isChild, session }) {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <header className="sticky top-0 z-10 bg-white/70 backdrop-blur border-b border-slate-200">
       <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
@@ -384,11 +427,21 @@ function Header({ isChild }) {
             </p>
           </div>
         </div>
-        {!isChild && (
-          <Link to="/" className="text-sm text-sky-600 hover:text-sky-700 font-medium">
-            Gyerek nézet →
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {!isChild && (
+            <Link to="/" className="text-sm text-sky-600 hover:text-sky-700 font-medium">
+              Gyerek →
+            </Link>
+          )}
+          {!isChild && (
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-red-600 hover:text-red-700 font-medium"
+            >
+              Kilépés
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
