@@ -295,6 +295,9 @@ function ParentView({ session }) {
   const [activity, setActivity] = useState("");
   const [foodNote, setFoodNote] = useState("");
   const [medicationNote, setMedicationNote] = useState("");
+  // Media state
+  const [photos, setPhotos] = useState([]);
+  const [voiceNote, setVoiceNote] = useState(null);
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
@@ -307,6 +310,8 @@ function ParentView({ session }) {
     setActivity("");
     setFoodNote("");
     setMedicationNote("");
+    setPhotos([]);
+    setVoiceNote(null);
   };
 
   const openEditModal = (entry) => {
@@ -322,6 +327,8 @@ function ParentView({ session }) {
     setActivity(ctx.activity || "");
     setFoodNote(ctx.food || "");
     setMedicationNote(ctx.medication || "");
+    setPhotos(entry.photos || []);
+    setVoiceNote(entry.voice_note || null);
   };
 
   const closeLogModal = () => {
@@ -347,6 +354,8 @@ function ParentView({ session }) {
         duration: duration ? Number(duration) : null,
         note: note.trim(),
         context: contextData,
+        photos: photos.length > 0 ? photos : null,
+        voice_note: voiceNote,
       });
 
       if (error) {
@@ -367,6 +376,8 @@ function ParentView({ session }) {
         note: note.trim(),
         environment,
         context: contextData,
+        photos: photos.length > 0 ? photos : null,
+        voice_note: voiceNote,
       });
 
       if (error) {
@@ -442,6 +453,11 @@ function ParentView({ session }) {
           setFoodNote={setFoodNote}
           medicationNote={medicationNote}
           setMedicationNote={setMedicationNote}
+          photos={photos}
+          setPhotos={setPhotos}
+          voiceNote={voiceNote}
+          setVoiceNote={setVoiceNote}
+          userId={userId}
           isParentMode={true}
           isEditing={!!editingEntry}
           onClose={closeLogModal}
