@@ -5,6 +5,8 @@ import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import { useSymptoms, useEntries } from "./useSupabaseData";
 import { AUTO_LOGIN_CONFIG } from "./autoLoginConfig";
+import PhotoUpload from "./PhotoUpload";
+import VoiceRecorder from "./VoiceRecorder";
 
 // --- Utility helpers ---
 const LS_KEYS = {
@@ -174,6 +176,9 @@ function ChildView({ session }) {
   const [mood, setMood] = useState("");
   const [energy, setEnergy] = useState("");
   const [activity, setActivity] = useState("");
+  // Media state
+  const [photos, setPhotos] = useState([]);
+  const [voiceNote, setVoiceNote] = useState(null);
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
@@ -183,6 +188,8 @@ function ChildView({ session }) {
     setMood("");
     setEnergy("");
     setActivity("");
+    setPhotos([]);
+    setVoiceNote(null);
   };
   const closeLogModal = () => setActiveSymptom(null);
 
@@ -208,6 +215,8 @@ function ChildView({ session }) {
       note: note.trim(),
       environment,
       context: contextData,
+      photos: photos.length > 0 ? photos : null,
+      voice_note: voiceNote,
     });
 
     if (error) {
@@ -239,6 +248,11 @@ function ChildView({ session }) {
           setEnergy={setEnergy}
           activity={activity}
           setActivity={setActivity}
+          photos={photos}
+          setPhotos={setPhotos}
+          voiceNote={voiceNote}
+          setVoiceNote={setVoiceNote}
+          userId={userId}
           isParentMode={false}
           onClose={closeLogModal}
           onSave={saveEntry}
@@ -1254,6 +1268,11 @@ function LogModal({
   setFoodNote,
   medicationNote,
   setMedicationNote,
+  photos,
+  setPhotos,
+  voiceNote,
+  setVoiceNote,
+  userId,
   isParentMode,
   isEditing,
   onClose,
@@ -1351,6 +1370,28 @@ function LogModal({
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-300 min-h-[80px]"
           />
         </label>
+
+        {/* Photo Upload */}
+        {userId && setPhotos && (
+          <div className="mb-4">
+            <PhotoUpload
+              userId={userId}
+              photos={photos || []}
+              onChange={setPhotos}
+            />
+          </div>
+        )}
+
+        {/* Voice Note Recorder */}
+        {userId && setVoiceNote && (
+          <div className="mb-4">
+            <VoiceRecorder
+              userId={userId}
+              voiceNotePath={voiceNote}
+              onChange={setVoiceNote}
+            />
+          </div>
+        )}
 
         {/* Context section - collapsible */}
         <div className="mb-4">
