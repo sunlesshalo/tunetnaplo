@@ -41,6 +41,12 @@ export async function uploadPhoto(file, userId) {
  */
 export async function uploadVoiceNote(audioBlob, userId) {
   try {
+    console.log('🎵 uploadVoiceNote called', {
+      userId,
+      blobSize: audioBlob.size,
+      blobType: audioBlob.type
+    });
+
     // Determine file extension from blob type
     const mimeType = audioBlob.type;
     let ext = 'webm';
@@ -49,6 +55,7 @@ export async function uploadVoiceNote(audioBlob, userId) {
     else if (mimeType.includes('wav')) ext = 'wav';
 
     const fileName = `${userId}/${Date.now()}-voice.${ext}`;
+    console.log('📁 Uploading to:', fileName, 'with type:', mimeType);
 
     const { data, error } = await supabase.storage
       .from('voice-notes')
@@ -58,16 +65,23 @@ export async function uploadVoiceNote(audioBlob, userId) {
         contentType: mimeType
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase upload error:', error);
+      throw error;
+    }
+
+    console.log('✅ Upload successful:', data);
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('voice-notes')
       .getPublicUrl(fileName);
 
+    console.log('🔗 Public URL:', publicUrl);
+
     return { path: fileName, url: publicUrl, error: null };
   } catch (error) {
-    console.error('Voice note upload error:', error);
+    console.error('❌ Voice note upload error:', error);
     return { path: null, url: null, error: error.message };
   }
 }

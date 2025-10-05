@@ -46,10 +46,24 @@ export default function VoiceRecorder({ userId, voiceNotePath, onChange }) {
         const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         stream.getTracks().forEach(track => track.stop());
 
+        console.log('🎤 Recording stopped', {
+          blobSize: audioBlob.size,
+          blobType: audioBlob.type,
+          chunks: chunksRef.current.length
+        });
+
+        if (audioBlob.size === 0) {
+          alert('A felvétel üres. Kérlek próbáld újra!');
+          return;
+        }
+
         // Upload the recording
         setUploading(true);
+        console.log('📤 Uploading voice note...');
         const result = await uploadVoiceNote(audioBlob, userId);
         setUploading(false);
+
+        console.log('Upload result:', result);
 
         if (result.error) {
           alert(`Hiba a hangfelvétel feltöltésekor: ${result.error}`);
