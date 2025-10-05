@@ -12,6 +12,47 @@ const LS_KEYS = {
 const todayISO = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+// Auto-capture environmental context
+const captureEnvironment = async () => {
+  const env = {
+    timestamp: new Date().toISOString(),
+    timeOfDay: new Date().getHours(),
+    dayOfWeek: new Date().getDay(),
+  };
+
+  // Geolocation
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+    });
+    env.location = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+    };
+
+    // Weather data (OpenWeatherMap free tier)
+    const API_KEY = "YOUR_API_KEY"; // User will need to add their own
+    const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${env.location.lat}&lon=${env.location.lng}&appid=${API_KEY}&units=metric&lang=hu`;
+
+    const weatherResponse = await fetch(weatherUrl);
+    if (weatherResponse.ok) {
+      const weatherData = await weatherResponse.json();
+      env.weather = {
+        condition: weatherData.weather[0].description,
+        temp: Math.round(weatherData.main.temp),
+        humidity: weatherData.main.humidity,
+        pressure: weatherData.main.pressure,
+        city: weatherData.name,
+      };
+    }
+  } catch (error) {
+    console.log("Could not capture environment:", error);
+    // Gracefully fail - symptom logging still works
+  }
+
+  return env;
+};
+
 const DEFAULT_SYMPTOMS = [];
 
 // Expanded emoji selection - health and symptom related
@@ -80,18 +121,29 @@ function ChildView() {
   const [intensity, setIntensity] = useState(5);
   const [note, setNote] = useState("");
   const [duration, setDuration] = useState("");
+  // Context state
+  const [mood, setMood] = useState("");
+  const [energy, setEnergy] = useState("");
+  const [activity, setActivity] = useState("");
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
     setIntensity(5);
     setNote("");
     setDuration("");
+    setMood("");
+    setEnergy("");
+    setActivity("");
   };
   const closeLogModal = () => setActiveSymptom(null);
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
     if (!activeSymptom) return;
     const now = new Date();
+
+    // Capture environmental context automatically
+    const environment = await captureEnvironment();
+
     const entry = {
       id: uid(),
       date: todayISO(),
@@ -100,6 +152,12 @@ function ChildView() {
       intensity: Number(intensity),
       duration: duration ? Number(duration) : null,
       note: note.trim(),
+      environment, // Auto-captured weather/location/pressure
+      context: {
+        mood: mood || null,
+        energy: energy || null,
+        activity: activity || null,
+      },
     };
     setEntries((prev) => [entry, ...prev]);
     closeLogModal();
@@ -121,6 +179,13 @@ function ChildView() {
           setDuration={setDuration}
           note={note}
           setNote={setNote}
+          mood={mood}
+          setMood={setMood}
+          energy={energy}
+          setEnergy={setEnergy}
+          activity={activity}
+          setActivity={setActivity}
+          isParentMode={false}
           onClose={closeLogModal}
           onSave={saveEntry}
         />
@@ -151,31 +216,93 @@ function ParentView() {
 
   // Modal state
   const [activeSymptom, setActiveSymptom] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [intensity, setIntensity] = useState(5);
   const [note, setNote] = useState("");
   const [duration, setDuration] = useState("");
+  // Context state
+  const [mood, setMood] = useState("");
+  const [energy, setEnergy] = useState("");
+  const [activity, setActivity] = useState("");
+  const [foodNote, setFoodNote] = useState("");
+  const [medicationNote, setMedicationNote] = useState("");
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
+    setEditingEntry(null);
     setIntensity(5);
     setNote("");
     setDuration("");
+    setMood("");
+    setEnergy("");
+    setActivity("");
+    setFoodNote("");
+    setMedicationNote("");
   };
-  const closeLogModal = () => setActiveSymptom(null);
 
-  const saveEntry = () => {
+  const openEditModal = (entry) => {
+    const symptom = symptoms.find((s) => s.id === entry.symptomId);
+    setActiveSymptom(symptom);
+    setEditingEntry(entry);
+    setIntensity(entry.intensity);
+    setNote(entry.note || "");
+    setDuration(entry.duration?.toString() || "");
+    const ctx = entry.context || {};
+    setMood(ctx.mood || "");
+    setEnergy(ctx.energy || "");
+    setActivity(ctx.activity || "");
+    setFoodNote(ctx.food || "");
+    setMedicationNote(ctx.medication || "");
+  };
+
+  const closeLogModal = () => {
+    setActiveSymptom(null);
+    setEditingEntry(null);
+  };
+
+  const saveEntry = async () => {
     if (!activeSymptom) return;
-    const now = new Date();
-    const entry = {
-      id: uid(),
-      date: todayISO(),
-      timestamp: now.toISOString(),
-      symptomId: activeSymptom.id,
-      intensity: Number(intensity),
-      duration: duration ? Number(duration) : null,
-      note: note.trim(),
-    };
-    setEntries((prev) => [entry, ...prev]);
+
+    if (editingEntry) {
+      // Edit existing entry - preserve original timestamp and environment
+      const updatedEntry = {
+        ...editingEntry,
+        intensity: Number(intensity),
+        duration: duration ? Number(duration) : null,
+        note: note.trim(),
+        context: {
+          mood: mood || null,
+          energy: energy || null,
+          activity: activity || null,
+          food: foodNote.trim() || null,
+          medication: medicationNote.trim() || null,
+        },
+      };
+      setEntries((prev) => prev.map((e) => (e.id === editingEntry.id ? updatedEntry : e)));
+    } else {
+      // Create new entry
+      const now = new Date();
+      const environment = await captureEnvironment();
+
+      const entry = {
+        id: uid(),
+        date: todayISO(),
+        timestamp: now.toISOString(),
+        symptomId: activeSymptom.id,
+        intensity: Number(intensity),
+        duration: duration ? Number(duration) : null,
+        note: note.trim(),
+        environment, // Auto-captured weather/location/pressure
+        context: {
+          mood: mood || null,
+          energy: energy || null,
+          activity: activity || null,
+          food: foodNote.trim() || null,
+          medication: medicationNote.trim() || null,
+        },
+      };
+      setEntries((prev) => [entry, ...prev]);
+    }
     closeLogModal();
   };
 
@@ -208,7 +335,7 @@ function ParentView() {
           />
         )}
         {tab === 2 && (
-          <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={deleteEntry} />
+          <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={deleteEntry} onEdit={openEditModal} />
         )}
         {tab === 3 && <ExportTab entries={entries} symptoms={symptoms} />}
       </main>
@@ -224,6 +351,18 @@ function ParentView() {
           setDuration={setDuration}
           note={note}
           setNote={setNote}
+          mood={mood}
+          setMood={setMood}
+          energy={energy}
+          setEnergy={setEnergy}
+          activity={activity}
+          setActivity={setActivity}
+          foodNote={foodNote}
+          setFoodNote={setFoodNote}
+          medicationNote={medicationNote}
+          setMedicationNote={setMedicationNote}
+          isParentMode={true}
+          isEditing={!!editingEntry}
           onClose={closeLogModal}
           onSave={saveEntry}
         />
@@ -344,8 +483,12 @@ function HomeTab({ symptoms, onLog, entries }) {
 }
 
 function RecentEntry({ entry, symptoms }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const s = symptoms.find((x) => x.id === entry.symptomId);
   const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+  const context = entry.context || {};
+  const env = entry.environment || {};
+  const weather = env.weather || {};
 
   const formatDuration = (minutes) => {
     if (!minutes) return null;
@@ -356,23 +499,117 @@ function RecentEntry({ entry, symptoms }) {
     return `${hours}ó ${mins}p`;
   };
 
+  const hasContext = context.mood || context.energy || context.activity || context.food || context.medication;
+  const hasEnv = weather.condition || weather.temp || weather.pressure || env.location;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{s?.emoji ?? "❓"}</span>
-          <div>
-            <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
-            <div className="text-xs text-slate-500">
-              {time}
-              {entry.duration && <> • {formatDuration(entry.duration)}</>}
+    <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-1">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-3 flex-1 text-left"
+          >
+            <span className="text-2xl">{s?.emoji ?? "❓"}</span>
+            <div className="flex-1">
+              <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
+              <div className="text-xs text-slate-500">
+                {time}
+                {entry.duration && <> • {formatDuration(entry.duration)}</>}
+              </div>
             </div>
-          </div>
+            {(hasContext || hasEnv) && (
+              <span className="text-slate-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
+            )}
+          </button>
+          <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold ml-2">{entry.intensity}</span>
         </div>
-        <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold">{entry.intensity}</span>
+        {entry.note && (
+          <div className="text-xs text-slate-600 mt-2 pl-11 italic">"{entry.note}"</div>
+        )}
       </div>
-      {entry.note && (
-        <div className="text-xs text-slate-600 mt-2 pl-11 italic">"{entry.note}"</div>
+
+      {/* Expanded view */}
+      {isExpanded && (hasContext || hasEnv) && (
+        <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-3">
+          {/* Context section */}
+          {hasContext && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-slate-700">📝 Kontextus</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {context.mood && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Hangulat:</span>
+                    <span className="ml-1 font-medium">{context.mood}</span>
+                  </div>
+                )}
+                {context.energy && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Energia:</span>
+                    <span className="ml-1 font-medium">{context.energy}</span>
+                  </div>
+                )}
+                {context.activity && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Tevékenység:</span>
+                    <span className="ml-1 font-medium">{context.activity}</span>
+                  </div>
+                )}
+                {context.food && (
+                  <div className="bg-white rounded-lg p-2 col-span-2">
+                    <span className="text-slate-500">Étel:</span>
+                    <span className="ml-1 font-medium">{context.food}</span>
+                  </div>
+                )}
+                {context.medication && (
+                  <div className="bg-white rounded-lg p-2 col-span-2">
+                    <span className="text-slate-500">Gyógyszer:</span>
+                    <span className="ml-1 font-medium">{context.medication}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Environment section */}
+          {hasEnv && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-slate-700">🌤️ Környezet</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {weather.condition && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Időjárás:</span>
+                    <span className="ml-1 font-medium">{weather.condition}</span>
+                  </div>
+                )}
+                {weather.temp && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Hőmérséklet:</span>
+                    <span className="ml-1 font-medium">{weather.temp}°C</span>
+                  </div>
+                )}
+                {weather.pressure && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Légnyomás:</span>
+                    <span className="ml-1 font-medium">{weather.pressure} hPa</span>
+                  </div>
+                )}
+                {weather.city && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Helyszín:</span>
+                    <span className="ml-1 font-medium">{weather.city}</span>
+                  </div>
+                )}
+                {env.timeOfDay !== undefined && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Időszak:</span>
+                    <span className="ml-1 font-medium">{env.timeOfDay}h</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -588,7 +825,9 @@ function PerSymptomBreakdown({ entries, symptoms }) {
 }
 
 // --- Manage Entries Tab (Parent Only) ---
-function ManageEntriesTab({ entries, symptoms, onDelete }) {
+function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
+  const [expandedId, setExpandedId] = useState(null);
+
   const formatDuration = (minutes) => {
     if (!minutes) return null;
     if (minutes < 60) return `${minutes} perc`;
@@ -611,34 +850,137 @@ function ManageEntriesTab({ entries, symptoms, onDelete }) {
               hour: "2-digit",
               minute: "2-digit",
             });
+            const isExpanded = expandedId === entry.id;
+            const context = entry.context || {};
+            const env = entry.environment || {};
+            const weather = env.weather || {};
+
             return (
-              <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{symptom?.emoji ?? "❓"}</span>
-                    <div>
-                      <div className="font-medium">{symptom?.name ?? "Ismeretlen"}</div>
-                      <div className="text-xs text-slate-500">
-                        {entry.date} • {time}
-                        {entry.duration && <> • {formatDuration(entry.duration)}</>}
+              <div key={entry.id} className="rounded-xl border border-slate-200 bg-white">
+                {/* Collapsed view */}
+                <div className="p-3">
+                  <div className="flex items-start justify-between mb-2">
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                      className="flex items-center gap-3 flex-1 text-left"
+                    >
+                      <span className="text-2xl">{symptom?.emoji ?? "❓"}</span>
+                      <div className="flex-1">
+                        <div className="font-medium">{symptom?.name ?? "Ismeretlen"}</div>
+                        <div className="text-xs text-slate-500">
+                          {entry.date} • {time}
+                          {entry.duration && <> • {formatDuration(entry.duration)}</>}
+                        </div>
                       </div>
+                      <span className="text-slate-400 text-sm">{isExpanded ? "▼" : "▶"}</span>
+                    </button>
+                    <div className="flex gap-1 ml-2">
+                      <button
+                        onClick={() => onEdit(entry)}
+                        className="text-sky-600 hover:text-sky-700 px-2 py-1 rounded-lg hover:bg-sky-50 text-sm"
+                      >
+                        Szerkeszt
+                      </button>
+                      <button
+                        onClick={() => onDelete(entry.id)}
+                        className="text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 text-sm"
+                      >
+                        Törlés
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => onDelete(entry.id)}
-                    className="text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 text-sm"
-                  >
-                    Törlés
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-600">Erősség:</span>
+                    <span className="text-sm px-2 py-0.5 rounded-lg bg-sky-100 font-semibold">
+                      {entry.intensity}/10
+                    </span>
+                  </div>
+                  {entry.note && (
+                    <div className="text-xs text-slate-600 mt-2 italic">"{entry.note}"</div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600">Erősség:</span>
-                  <span className="text-sm px-2 py-0.5 rounded-lg bg-sky-100 font-semibold">
-                    {entry.intensity}/10
-                  </span>
-                </div>
-                {entry.note && (
-                  <div className="text-xs text-slate-600 mt-2 italic">"{entry.note}"</div>
+
+                {/* Expanded view */}
+                {isExpanded && (
+                  <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-3">
+                    {/* Context section */}
+                    {(context.mood || context.energy || context.activity || context.food || context.medication) && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-slate-700">📝 Kontextus</h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {context.mood && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Hangulat:</span>
+                              <span className="ml-1 font-medium">{context.mood}</span>
+                            </div>
+                          )}
+                          {context.energy && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Energia:</span>
+                              <span className="ml-1 font-medium">{context.energy}</span>
+                            </div>
+                          )}
+                          {context.activity && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Tevékenység:</span>
+                              <span className="ml-1 font-medium">{context.activity}</span>
+                            </div>
+                          )}
+                          {context.food && (
+                            <div className="bg-white rounded-lg p-2 col-span-2">
+                              <span className="text-slate-500">Étel:</span>
+                              <span className="ml-1 font-medium">{context.food}</span>
+                            </div>
+                          )}
+                          {context.medication && (
+                            <div className="bg-white rounded-lg p-2 col-span-2">
+                              <span className="text-slate-500">Gyógyszer:</span>
+                              <span className="ml-1 font-medium">{context.medication}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Environment section */}
+                    {(weather.condition || weather.temp || weather.pressure || env.location) && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-slate-700">🌤️ Környezet</h4>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {weather.condition && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Időjárás:</span>
+                              <span className="ml-1 font-medium">{weather.condition}</span>
+                            </div>
+                          )}
+                          {weather.temp && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Hőmérséklet:</span>
+                              <span className="ml-1 font-medium">{weather.temp}°C</span>
+                            </div>
+                          )}
+                          {weather.pressure && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Légnyomás:</span>
+                              <span className="ml-1 font-medium">{weather.pressure} hPa</span>
+                            </div>
+                          )}
+                          {weather.city && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Helyszín:</span>
+                              <span className="ml-1 font-medium">{weather.city}</span>
+                            </div>
+                          )}
+                          {env.timeOfDay !== undefined && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Időszak:</span>
+                              <span className="ml-1 font-medium">{env.timeOfDay}h</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -652,14 +994,20 @@ function ManageEntriesTab({ entries, symptoms, onDelete }) {
 // --- Export Tab (Parent Only) ---
 function ExportTab({ entries, symptoms }) {
   const exportCSV = () => {
-    const header = "Dátum,Idő,Tünet,Erősség,Időtartam (perc),Jegyzet\n";
+    const header = "Dátum,Idő,Tünet,Erősség,Időtartam (perc),Jegyzet,Hangulat,Energia,Tevékenység,Étel,Gyógyszer,Időszak,Hőmérséklet,Időjárás,Légnyomás,Helyszín\n";
     const rows = entries.map((e) => {
       const s = symptoms.find((sym) => sym.id === e.symptomId);
       const time = new Date(e.timestamp).toLocaleTimeString("hu-HU", {
         hour: "2-digit",
         minute: "2-digit",
       });
-      return `${e.date},${time},"${s?.name ?? "Ismeretlen"}",${e.intensity},${e.duration || ""},${e.note || ""}`;
+      const context = e.context || {};
+      const env = e.environment || {};
+      const weather = env.weather || {};
+      const location = env.location ? `${env.location.lat.toFixed(4)}, ${env.location.lng.toFixed(4)}` : "";
+      const timeOfDay = env.timeOfDay ? `${env.timeOfDay}h` : "";
+
+      return `${e.date},${time},"${s?.name ?? "Ismeretlen"}",${e.intensity},${e.duration || ""},${e.note || ""},${context.mood || ""},${context.energy || ""},${context.activity || ""},${context.food || ""},${context.medication || ""},${timeOfDay},${weather.temp ? weather.temp + "°C" : ""},${weather.condition || ""},${weather.pressure ? weather.pressure + " hPa" : ""},${location}`;
     }).join("\n");
     const csv = header + rows;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -696,6 +1044,8 @@ function ExportTab({ entries, symptoms }) {
                 <th>Erősség</th>
                 <th>Időtartam</th>
                 <th>Jegyzet</th>
+                <th>Kontextus</th>
+                <th>Környezet</th>
               </tr>
             </thead>
             <tbody>
@@ -711,6 +1061,26 @@ function ExportTab({ entries, symptoms }) {
                       ? `${e.duration} perc`
                       : `${Math.floor(e.duration / 60)} óra`
                     : "-";
+
+                  const context = e.context || {};
+                  const contextStr = [
+                    context.mood ? `Hangulat: ${context.mood}` : "",
+                    context.energy ? `Energia: ${context.energy}` : "",
+                    context.activity ? `Tevékenység: ${context.activity}` : "",
+                    context.food ? `Étel: ${context.food}` : "",
+                    context.medication ? `Gyógyszer: ${context.medication}` : "",
+                  ].filter(Boolean).join(", ") || "-";
+
+                  const env = e.environment || {};
+                  const weather = env.weather || {};
+                  const envStr = [
+                    env.timeOfDay ? `${env.timeOfDay}h` : "",
+                    weather.temp ? `${weather.temp}°C` : "",
+                    weather.condition || "",
+                    weather.pressure ? `${weather.pressure} hPa` : "",
+                    weather.city || "",
+                  ].filter(Boolean).join(", ") || "-";
+
                   return `
                     <tr>
                       <td>${e.date}</td>
@@ -719,6 +1089,8 @@ function ExportTab({ entries, symptoms }) {
                       <td>${e.intensity}/10</td>
                       <td>${duration}</td>
                       <td>${e.note || "-"}</td>
+                      <td style="font-size: 11px;">${contextStr}</td>
+                      <td style="font-size: 11px;">${envStr}</td>
                     </tr>
                   `;
                 })
@@ -767,7 +1139,9 @@ function ExportTab({ entries, symptoms }) {
           <li>Összes bejegyzés ({entries.length} db)</li>
           <li>Dátum, idő, tünet név</li>
           <li>Erősség és időtartam</li>
-          <li>Jegyzetek</li>
+          <li>Jegyzetek és kontextus (hangulat, energia, tevékenység)</li>
+          <li>Étel és gyógyszer (ha van)</li>
+          <li>Környezeti adatok (időjárás, hőmérséklet, légnyomás, helyszín)</li>
         </ul>
       </div>
     </div>
@@ -775,13 +1149,57 @@ function ExportTab({ entries, symptoms }) {
 }
 
 // --- Log Modal ---
-function LogModal({ symptom, intensity, setIntensity, duration, setDuration, note, setNote, onClose, onSave }) {
+function LogModal({
+  symptom,
+  intensity,
+  setIntensity,
+  duration,
+  setDuration,
+  note,
+  setNote,
+  mood,
+  setMood,
+  energy,
+  setEnergy,
+  activity,
+  setActivity,
+  foodNote,
+  setFoodNote,
+  medicationNote,
+  setMedicationNote,
+  isParentMode,
+  isEditing,
+  onClose,
+  onSave
+}) {
+  const [contextOpen, setContextOpen] = useState(false);
+
   const durationPresets = [
     { label: "5 perc", value: 5 },
     { label: "15 perc", value: 15 },
     { label: "30 perc", value: 30 },
     { label: "1 óra", value: 60 },
     { label: "2+ óra", value: 120 },
+  ];
+
+  const moodOptions = [
+    { label: "Jó", emoji: "😊", value: "jó" },
+    { label: "Oké", emoji: "😐", value: "oké" },
+    { label: "Szomorú", emoji: "😢", value: "szomorú" },
+    { label: "Mérges", emoji: "😠", value: "mérges" },
+  ];
+
+  const energyOptions = [
+    { label: "Energikus", emoji: "⚡", value: "energikus" },
+    { label: "Fáradt", emoji: "😴", value: "fáradt" },
+    { label: "Nagyon fáradt", emoji: "🥱", value: "nagyon fáradt" },
+  ];
+
+  const activityOptions = [
+    { label: "Mozgás", emoji: "🏃", value: "mozgás" },
+    { label: "Tanulás", emoji: "📚", value: "tanulás" },
+    { label: "Játék", emoji: "🎮", value: "játék" },
+    { label: "Pihenés", emoji: "🛏️", value: "pihenés" },
   ];
 
   return (
@@ -847,9 +1265,120 @@ function LogModal({ symptom, intensity, setIntensity, duration, setDuration, not
           />
         </label>
 
+        {/* Context section - collapsible */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setContextOpen(!contextOpen)}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition"
+          >
+            <span className="text-sm font-medium">Hogy érzed magad? (opcionális)</span>
+            <span className="text-lg">{contextOpen ? "▼" : "▶"}</span>
+          </button>
+
+          {contextOpen && (
+            <div className="mt-3 space-y-4 p-3 rounded-xl border border-slate-200 bg-slate-50">
+              {/* Mood */}
+              <div>
+                <span className="text-xs font-medium text-slate-600 mb-2 block">Hangulat</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {moodOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setMood(mood === option.value ? "" : option.value)}
+                      className={`p-2 rounded-lg border transition text-sm font-medium ${
+                        mood === option.value
+                          ? "bg-sky-500 text-white border-sky-500"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                      }`}
+                    >
+                      <span className="mr-1">{option.emoji}</span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Energy */}
+              <div>
+                <span className="text-xs font-medium text-slate-600 mb-2 block">Energia</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {energyOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setEnergy(energy === option.value ? "" : option.value)}
+                      className={`p-2 rounded-lg border transition text-sm font-medium ${
+                        energy === option.value
+                          ? "bg-sky-500 text-white border-sky-500"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                      }`}
+                    >
+                      <span className="mr-1">{option.emoji}</span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Activity */}
+              <div>
+                <span className="text-xs font-medium text-slate-600 mb-2 block">Mit csináltál?</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {activityOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setActivity(activity === option.value ? "" : option.value)}
+                      className={`p-2 rounded-lg border transition text-sm font-medium ${
+                        activity === option.value
+                          ? "bg-sky-500 text-white border-sky-500"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                      }`}
+                    >
+                      <span className="mr-1">{option.emoji}</span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Parent-only fields */}
+              {isParentMode && (
+                <>
+                  <div>
+                    <span className="text-xs font-medium text-slate-600 mb-1 block">Étel/Táplálék (opcionális)</span>
+                    <input
+                      type="text"
+                      value={foodNote}
+                      onChange={(e) => setFoodNote(e.target.value)}
+                      placeholder="pl. alma, brokkoli"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-medium text-slate-600 mb-1 block">Gyógyszer (opcionális)</span>
+                    <input
+                      type="text"
+                      value={medicationNote}
+                      onChange={(e) => setMedicationNote(e.target.value)}
+                      placeholder="pl. antihistamin, fájdalomcsillapító"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-2xl border border-slate-300 py-3">Mégse</button>
-          <button onClick={onSave} className="flex-1 rounded-2xl bg-sky-500 text-white font-semibold py-3">Mentés</button>
+          <button onClick={onSave} className="flex-1 rounded-2xl bg-sky-500 text-white font-semibold py-3">
+            {isEditing ? "Módosítás" : "Mentés"}
+          </button>
         </div>
       </div>
     </div>
