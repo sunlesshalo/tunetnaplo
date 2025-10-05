@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import { useSymptoms, useEntries } from "./useSupabaseData";
+import { AUTO_LOGIN_CONFIG } from "./autoLoginConfig";
 
 // --- Utility helpers ---
 const LS_KEYS = {
@@ -98,15 +99,12 @@ export default function App() {
         return;
       }
 
-      // Auto-login if credentials are configured
-      const autoEmail = import.meta.env.VITE_AUTO_LOGIN_EMAIL;
-      const autoPassword = import.meta.env.VITE_AUTO_LOGIN_PASSWORD;
-
-      if (autoEmail && autoPassword && autoEmail !== 'your-email@example.com') {
+      // Auto-login with hardcoded credentials (no-login branch)
+      if (AUTO_LOGIN_CONFIG.email && AUTO_LOGIN_CONFIG.email !== 'YOUR_EMAIL_HERE') {
         console.log('🔐 Auto-logging in...');
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: autoEmail,
-          password: autoPassword,
+          email: AUTO_LOGIN_CONFIG.email,
+          password: AUTO_LOGIN_CONFIG.password,
         });
 
         if (error) {
