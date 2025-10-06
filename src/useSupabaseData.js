@@ -219,16 +219,20 @@ export function useEntries(userId) {
   // Delete entry
   const deleteEntry = async (entryId) => {
     try {
-      const { error } = await supabase
+      console.log('🔴 Deleting entry:', { entryId, userId });
+      const { data, error } = await supabase
         .from('entries')
         .delete()
         .eq('id', entryId)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select();
 
+      console.log('🔴 Delete result:', { data, error });
       if (error) throw error;
+      console.log('✅ Entry deleted successfully');
       return { error: null };
     } catch (err) {
-      console.error('Error deleting entry:', err);
+      console.error('❌ Error deleting entry:', err);
       return { error: err.message };
     }
   };
