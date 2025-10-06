@@ -621,7 +621,7 @@ function RecentEntry({ entry, symptoms }) {
   };
 
   const hasContext = context.mood || context.energy || context.activity || context.food || context.medication;
-  const hasEnv = weather.condition || weather.temp || weather.pressure || env.location;
+  const hasEnv = weather.condition || weather.temp || weather.pressure || env.location || env.timeOfDay !== undefined || env.dayOfWeek !== undefined;
   const hasMedia = (entry.photos && entry.photos.length > 0) || entry.voice_note;
 
   return (
@@ -726,6 +726,12 @@ function RecentEntry({ entry, symptoms }) {
                   <div className="bg-white rounded-lg p-2">
                     <span className="text-slate-500">Időszak:</span>
                     <span className="ml-1 font-medium">{env.timeOfDay}h</span>
+                  </div>
+                )}
+                {env.dayOfWeek !== undefined && (
+                  <div className="bg-white rounded-lg p-2">
+                    <span className="text-slate-500">Nap:</span>
+                    <span className="ml-1 font-medium">{['Vasárnap', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'][env.dayOfWeek]}</span>
                   </div>
                 )}
               </div>
