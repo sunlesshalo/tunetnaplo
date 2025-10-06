@@ -1083,6 +1083,10 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
             const env = entry.environment || {};
             const weather = env.weather || {};
 
+            const hasContext = context.mood || context.energy || context.activity || context.food || context.medication;
+            const hasEnv = weather.condition || weather.temp || weather.pressure || env.location || env.timeOfDay !== undefined || env.dayOfWeek !== undefined;
+            const hasMedia = (entry.photos && entry.photos.length > 0) || entry.voice_note;
+
             return (
               <div key={entry.id} className="rounded-xl border border-slate-200 bg-white">
                 {/* Collapsed view */}
@@ -1100,7 +1104,9 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
                           {entry.duration && <> • {formatDuration(entry.duration)}</>}
                         </div>
                       </div>
-                      <span className="text-slate-400 text-sm">{isExpanded ? "▼" : "▶"}</span>
+                      {(hasContext || hasEnv || hasMedia) && (
+                        <span className="text-slate-400 text-sm">{isExpanded ? "▼" : "▶"}</span>
+                      )}
                     </button>
                     <div className="flex gap-1 ml-2">
                       <button
@@ -1129,7 +1135,7 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
                 </div>
 
                 {/* Expanded view */}
-                {isExpanded && (
+                {isExpanded && (hasContext || hasEnv || hasMedia) && (
                   <div className="border-t border-slate-200 p-3 bg-slate-50 space-y-3">
                     {/* Context section */}
                     {(context.mood || context.energy || context.activity || context.food || context.medication) && (
