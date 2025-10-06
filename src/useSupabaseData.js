@@ -162,15 +162,19 @@ export function useEntries(userId) {
         table: 'entries',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
+        console.log('📡 Realtime event received:', payload.eventType, payload);
         if (payload.eventType === 'INSERT') {
           setEntries(prev => [payload.new, ...prev]);
         } else if (payload.eventType === 'DELETE') {
+          console.log('🗑️ Removing entry from state:', payload.old.id);
           setEntries(prev => prev.filter(e => e.id !== payload.old.id));
         } else if (payload.eventType === 'UPDATE') {
           setEntries(prev => prev.map(e => e.id === payload.new.id ? payload.new : e));
         }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('📡 Realtime subscription status:', status, err);
+      });
 
     return () => {
       subscription.unsubscribe();
@@ -220,6 +224,10 @@ export function useEntries(userId) {
   const deleteEntry = async (entryId) => {
     try {
       console.log('🔴 Deleting entry:', { entryId, userId });
+
+      // Optimistically remove from UI immediately
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+
       const { data, error } = await supabase
         .from('entries')
         .delete()
@@ -228,7 +236,17 @@ export function useEntries(userId) {
         .select();
 
       console.log('🔴 Delete result:', { data, error });
-      if (error) throw error;
+      if (error) {
+        // If delete failed, refetch to restore the entry
+        console.error('❌ Delete failed, refetching entries');
+        const { data: entries } = await supabase
+          .from('entries')
+          .select('*')
+          .eq('user_id', userId)
+          .order('timestamp', { ascending: false });
+        setEntries(entries || []);
+        throw error;
+      }
       console.log('✅ Entry deleted successfully');
       return { error: null };
     } catch (err) {
