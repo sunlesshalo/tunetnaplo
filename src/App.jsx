@@ -7,6 +7,8 @@ import { useSymptoms, useEntries } from "./useSupabaseData";
 import { AUTO_LOGIN_CONFIG } from "./autoLoginConfig";
 import PhotoUpload from "./PhotoUpload";
 import VoiceRecorder from "./VoiceRecorder";
+import PatternsTab from "./PatternsTab";
+import { generateMedicalPDF } from "./pdfExport";
 
 // --- Utility helpers ---
 const LS_KEYS = {
@@ -264,7 +266,7 @@ function ChildView({ session }) {
 
 // --- Parent View (Full Features) ---
 function ParentView({ session }) {
-  const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Export
+  const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
 
   // Use Supabase hooks for data
   const userId = session?.user?.id;
@@ -429,7 +431,8 @@ function ParentView({ session }) {
         {tab === 2 && (
           <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={deleteEntry} onEdit={openEditModal} />
         )}
-        {tab === 3 && <ExportTab entries={entries} symptoms={symptoms} />}
+        {tab === 3 && <PatternsTab entries={entries} symptoms={symptoms} />}
+        {tab === 4 && <ExportTab entries={entries} symptoms={symptoms} />}
       </main>
 
       <ParentBottomNav tab={tab} setTab={setTab} />
@@ -536,11 +539,12 @@ function ParentBottomNav({ tab, setTab }) {
     { label: "Főlista", icon: "🏠" },
     { label: "Tünetek", icon: "⚙️" },
     { label: "Bejegyzések", icon: "📝" },
+    { label: "Mintázatok", icon: "📊" },
     { label: "Export", icon: "📤" },
   ];
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-slate-200">
-      <div className="max-w-md mx-auto grid grid-cols-4">
+      <div className="max-w-md mx-auto grid grid-cols-5">
         {items.map((it, i) => (
           <button
             key={i}
@@ -1165,91 +1169,7 @@ function ExportTab({ entries, symptoms }) {
   };
 
   const exportPDF = () => {
-    // Simple HTML print for now - could be enhanced with jsPDF library
-    const printWindow = window.open("", "", "width=800,height=600");
-    const content = `
-      <html>
-        <head>
-          <title>Tünetnapló - ${todayISO()}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #334155; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f1f5f9; }
-          </style>
-        </head>
-        <body>
-          <h1>🧸 Tünetnapló</h1>
-          <p>Export dátuma: ${new Date().toLocaleDateString("hu-HU")}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Dátum</th>
-                <th>Idő</th>
-                <th>Tünet</th>
-                <th>Erősség</th>
-                <th>Időtartam</th>
-                <th>Jegyzet</th>
-                <th>Kontextus</th>
-                <th>Környezet</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${entries
-                .map((e) => {
-                  const s = symptoms.find((sym) => sym.id === (e.symptom_id || e.symptomId));
-                  const time = new Date(e.timestamp).toLocaleTimeString("hu-HU", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-                  const duration = e.duration
-                    ? e.duration < 60
-                      ? `${e.duration} perc`
-                      : `${Math.floor(e.duration / 60)} óra`
-                    : "-";
-
-                  const context = e.context || {};
-                  const contextStr = [
-                    context.mood ? `Hangulat: ${context.mood}` : "",
-                    context.energy ? `Energia: ${context.energy}` : "",
-                    context.activity ? `Tevékenység: ${context.activity}` : "",
-                    context.food ? `Étel: ${context.food}` : "",
-                    context.medication ? `Gyógyszer: ${context.medication}` : "",
-                  ].filter(Boolean).join(", ") || "-";
-
-                  const env = e.environment || {};
-                  const weather = env.weather || {};
-                  const envStr = [
-                    env.timeOfDay ? `${env.timeOfDay}h` : "",
-                    weather.temp ? `${weather.temp}°C` : "",
-                    weather.condition || "",
-                    weather.pressure ? `${weather.pressure} hPa` : "",
-                    weather.city || "",
-                  ].filter(Boolean).join(", ") || "-";
-
-                  return `
-                    <tr>
-                      <td>${e.date}</td>
-                      <td>${time}</td>
-                      <td>${s?.emoji} ${s?.name ?? "Ismeretlen"}</td>
-                      <td>${e.intensity}/10</td>
-                      <td>${duration}</td>
-                      <td>${e.note || "-"}</td>
-                      <td style="font-size: 11px;">${contextStr}</td>
-                      <td style="font-size: 11px;">${envStr}</td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-    printWindow.document.write(content);
-    printWindow.document.close();
-    printWindow.print();
+    generateMedicalPDF(entries, symptoms);
   };
 
   return (
