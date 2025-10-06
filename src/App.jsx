@@ -1171,7 +1171,7 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
                     )}
 
                     {/* Environment section */}
-                    {(weather.condition || weather.temp || weather.pressure || env.location) && (
+                    {(weather.condition || weather.temp || weather.pressure || env.location || env.timeOfDay !== undefined || env.dayOfWeek !== undefined) && (
                       <div className="space-y-2">
                         <h4 className="text-xs font-semibold text-slate-700">🌤️ Környezet</h4>
                         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1205,7 +1205,42 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
                               <span className="ml-1 font-medium">{env.timeOfDay}h</span>
                             </div>
                           )}
+                          {env.dayOfWeek !== undefined && (
+                            <div className="bg-white rounded-lg p-2">
+                              <span className="text-slate-500">Nap:</span>
+                              <span className="ml-1 font-medium">{['Vasárnap', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'][env.dayOfWeek]}</span>
+                            </div>
+                          )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Photos section */}
+                    {entry.photos && entry.photos.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-slate-700">📸 Fotók</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          {entry.photos.map((photoPath, index) => (
+                            <img
+                              key={index}
+                              src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/symptom-photos/${photoPath}`}
+                              alt={`Symptom photo ${index + 1}`}
+                              className="w-full aspect-square object-cover rounded-lg"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Voice note section */}
+                    {entry.voice_note && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvétel</h4>
+                        <audio
+                          controls
+                          src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/voice-notes/${entry.voice_note}`}
+                          className="w-full h-10"
+                        />
                       </div>
                     )}
                   </div>
