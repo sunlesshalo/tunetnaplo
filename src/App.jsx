@@ -162,7 +162,7 @@ function ChildView({ session }) {
 
   // Use Supabase hooks for data
   const { symptoms: allSymptoms, loading: symptomsLoading } = useSymptoms(userId);
-  const { entries, loading: entriesLoading, addEntry } = useEntries(userId);
+  const { entries, loading: entriesLoading, addEntry, updateEntry, deleteEntry: deleteEntryDB } = useEntries(userId);
 
   // Filter out parent-only symptoms
   const symptoms = useMemo(() => {
@@ -171,6 +171,7 @@ function ChildView({ session }) {
 
   // Modal state for quick log
   const [activeSymptom, setActiveSymptom] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [intensity, setIntensity] = useState(5);
   const [note, setNote] = useState("");
   const [duration, setDuration] = useState("");
@@ -184,6 +185,7 @@ function ChildView({ session }) {
 
   const openLogModal = (symptom) => {
     setActiveSymptom(symptom);
+    setEditingEntry(null);
     setIntensity(5);
     setNote("");
     setDuration("");
@@ -193,14 +195,28 @@ function ChildView({ session }) {
     setPhotos([]);
     setVoiceNote(null);
   };
-  const closeLogModal = () => setActiveSymptom(null);
+
+  const openEditModal = (entry) => {
+    const symptom = allSymptoms.find(s => s.id === entry.symptom_id);
+    setActiveSymptom(symptom);
+    setEditingEntry(entry);
+    setIntensity(entry.intensity);
+    setNote(entry.note || "");
+    setDuration(entry.duration ? entry.duration.toString() : "");
+    setMood(entry.context?.mood || "");
+    setEnergy(entry.context?.energy || "");
+    setActivity(entry.context?.activity || "");
+    setPhotos(entry.photos || []);
+    setVoiceNote(entry.voice_note || null);
+  };
+
+  const closeLogModal = () => {
+    setActiveSymptom(null);
+    setEditingEntry(null);
+  };
 
   const saveEntry = async () => {
     if (!activeSymptom) return;
-    const now = new Date();
-
-    // Capture environmental context automatically
-    const environment = await captureEnvironment();
 
     const contextData = {
       mood: mood || null,
@@ -208,31 +224,63 @@ function ChildView({ session }) {
       activity: activity || null,
     };
 
-    const { error } = await addEntry({
-      date: todayISO(),
-      timestamp: now.toISOString(),
-      symptom_id: activeSymptom.id,
-      intensity: Number(intensity),
-      duration: duration ? Number(duration) : null,
-      note: note.trim(),
-      environment,
-      context: contextData,
-      photos: photos.length > 0 ? photos : null,
-      voice_note: voiceNote,
-    });
+    if (editingEntry) {
+      // Update existing entry
+      const { error } = await updateEntry(editingEntry.id, {
+        symptom_id: activeSymptom.id,
+        intensity: Number(intensity),
+        duration: duration ? Number(duration) : null,
+        note: note.trim(),
+        context: contextData,
+        photos: photos.length > 0 ? photos : null,
+        voice_note: voiceNote,
+      });
 
-    if (error) {
-      alert(`Hiba a mentésnél: ${error}`);
+      if (error) {
+        alert(`Hiba a mentésnél: ${error}`);
+        return;
+      }
+    } else {
+      // Create new entry
+      const now = new Date();
+      const environment = await captureEnvironment();
+
+      const { error } = await addEntry({
+        date: todayISO(),
+        timestamp: now.toISOString(),
+        symptom_id: activeSymptom.id,
+        intensity: Number(intensity),
+        duration: duration ? Number(duration) : null,
+        note: note.trim(),
+        environment,
+        context: contextData,
+        photos: photos.length > 0 ? photos : null,
+        voice_note: voiceNote,
+      });
+
+      if (error) {
+        alert(`Hiba a mentésnél: ${error}`);
+        return;
+      }
     }
 
     closeLogModal();
+  };
+
+  const deleteEntry = async (entryId) => {
+    if (window.confirm("Biztosan törölni szeretnéd ezt a bejegyzést?")) {
+      const { error } = await deleteEntryDB(entryId);
+      if (error) {
+        alert(`Hiba a törlésnél: ${error}`);
+      }
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
       <Header isChild={true} session={session} />
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-6">
-        <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} />
+        <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} onEdit={openEditModal} onDelete={deleteEntry} />
       </main>
 
       {activeSymptom && (
@@ -256,6 +304,7 @@ function ChildView({ session }) {
           setVoiceNote={setVoiceNote}
           userId={userId}
           isParentMode={false}
+          isEditing={!!editingEntry}
           onClose={closeLogModal}
           onSave={saveEntry}
         />
@@ -563,7 +612,7 @@ function ParentBottomNav({ tab, setTab }) {
 }
 
 // --- Home Tab ---
-function HomeTab({ symptoms, onLog, entries }) {
+function HomeTab({ symptoms, onLog, entries, onEdit, onDelete }) {
   // Last 3 entries for quick glance
   const recent = entries.slice(0, 5);
   return (
@@ -595,7 +644,7 @@ function HomeTab({ symptoms, onLog, entries }) {
             <p className="text-sm text-slate-500">Még nincs rögzített bejegyzés.</p>
           )}
           {recent.map((e) => (
-            <RecentEntry key={e.id} entry={e} symptoms={symptoms} />)
+            <RecentEntry key={e.id} entry={e} symptoms={symptoms} onEdit={onEdit} onDelete={onDelete} />)
           )}
         </div>
       </div>
@@ -603,7 +652,7 @@ function HomeTab({ symptoms, onLog, entries }) {
   );
 }
 
-function RecentEntry({ entry, symptoms }) {
+function RecentEntry({ entry, symptoms, onEdit, onDelete }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const s = symptoms.find((x) => x.id === (entry.symptom_id || entry.symptomId));
   const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
@@ -764,6 +813,28 @@ function RecentEntry({ entry, symptoms }) {
                 src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/voice-notes/${entry.voice_note}`}
                 className="w-full h-10"
               />
+            </div>
+          )}
+
+          {/* Edit/Delete buttons (if callbacks provided) */}
+          {(onEdit || onDelete) && (
+            <div className="flex gap-2 pt-2">
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(entry)}
+                  className="flex-1 px-3 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition"
+                >
+                  ✏️ Szerkesztés
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(entry.id)}
+                  className="flex-1 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition"
+                >
+                  🗑️ Törlés
+                </button>
+              )}
             </div>
           )}
         </div>
