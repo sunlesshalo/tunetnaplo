@@ -70,6 +70,13 @@ const confirmDeleteEntry = async (deleteFn, entryId) => {
   return true;
 };
 
+const ENTRY_FILTERS = [
+  { id: "1", label: "Ma", days: 1 },
+  { id: "7", label: "7 nap", days: 7 },
+  { id: "30", label: "30 nap", days: 30 },
+  { id: "all", label: "Összes" },
+];
+
 // Expanded emoji selection - health and symptom related
 const EMOJI_SET = [
   // Medical/Health
@@ -341,7 +348,13 @@ function ParentView({ session }) {
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">
         {tab === 0 && (
-          <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} />
+          <HomeTab
+            symptoms={symptoms}
+            onLog={openLogModal}
+            entries={entries}
+            onEdit={openEditModal}
+            onDelete={handleDeleteEntry}
+          />
         )}
         {tab === 1 && (
           <AddSymptomTab
@@ -490,12 +503,10 @@ function ParentBottomNav({ tab, setTab }) {
 }
 
 // --- Home Tab ---
-function HomeTab({ symptoms, onLog, entries, onEdit, onDelete }) {
-  // Last 3 entries for quick glance
-  const recent = entries.slice(0, 5);
+function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milyen tünet volt?", subtitle = "Koppints egy kártyára, majd állítsd be az erősséget." }) {
   return (
     <div className="space-y-6">
-      <SectionTitle title="Ma milyen tünet volt?" subtitle="Koppints egy kártyára, majd állítsd be az erősséget." />
+      <SectionTitle title={title} subtitle={subtitle} />
       <div className="grid grid-cols-2 gap-3">
         {symptoms.map((s) => {
           // If name is long (>12 chars), make button span full width
@@ -514,18 +525,16 @@ function HomeTab({ symptoms, onLog, entries, onEdit, onDelete }) {
           );
         })}
       </div>
-
-      <div className="pt-2">
-        <h3 className="text-sm font-semibold text-slate-600 mb-2">Legutóbbi bejegyzések</h3>
-        <div className="space-y-2">
-          {recent.length === 0 && (
-            <p className="text-sm text-slate-500">Még nincs rögzített bejegyzés.</p>
-          )}
-          {recent.map((e) => (
-            <EntryCard key={e.id} entry={e} symptoms={symptoms} onEdit={onEdit} onDelete={onDelete} />)
-          )}
-        </div>
-      </div>
+      <EntriesSection
+        entries={entries}
+        symptoms={symptoms}
+        title="Bejegyzések"
+        subtitle="Szűrd az elmúlt napok bejegyzéseit vagy nézd meg az összeset."
+        onEdit={onEdit}
+        onDelete={onDelete}
+        showDate={true}
+        defaultFilter="1"
+      />
     </div>
   );
 }
@@ -753,6 +762,118 @@ function EntryCard({ entry, symptoms, onEdit, onDelete, showDate = false, compac
   );
 }
 
+function EntriesSection({
+  entries,
+  symptoms,
+  title,
+  subtitle,
+  onEdit,
+  onDelete,
+  showDate = true,
+  compactButtons = false,
+  defaultFilter = "7",
+  showFilter = true,
+  allowLoadMore = true,
+}) {
+  const INITIAL_VISIBLE = 30;
+  const LOAD_STEP = 30;
+  const [filterId, setFilterId] = useState(defaultFilter);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+
+  useEffect(() => {
+    setFilterId(defaultFilter);
+  }, [defaultFilter]);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [filterId, entries.length]);
+
+  const filteredEntries = useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return [];
+    }
+
+    if (!showFilter) {
+      return entries;
+    }
+
+    const filter = ENTRY_FILTERS.find((f) => f.id === filterId) || ENTRY_FILTERS[0];
+    if (!filter.days) {
+      return entries;
+    }
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (filter.days - 1));
+    const startKey = start.toISOString().slice(0, 10);
+
+    return entries.filter((entry) => entry.date && entry.date >= startKey);
+  }, [entries, filterId, showFilter]);
+
+  const visibleEntries = allowLoadMore
+    ? filteredEntries.slice(0, visibleCount)
+    : filteredEntries;
+
+  const hasMore = allowLoadMore && filteredEntries.length > visibleEntries.length;
+
+  return (
+    <section className="space-y-3">
+      {title && <SectionTitle title={title} subtitle={subtitle} />}
+
+      {showFilter && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {ENTRY_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setFilterId(filter.id)}
+              className={`px-3 py-1.5 rounded-xl text-sm border transition whitespace-nowrap ${
+                filterId === filter.id
+                  ? "bg-sky-500 text-white border-sky-500"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-sky-300"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {visibleEntries.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          Nincs megjeleníthető bejegyzés a kiválasztott időszakban.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {visibleEntries.map((entry) => (
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              symptoms={symptoms}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              showDate={showDate}
+              compactButtons={compactButtons}
+            />
+          ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((prev) => prev + LOAD_STEP)}
+            className="px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+          >
+            További bejegyzések betöltése
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SectionTitle({ title, subtitle }) {
   return (
     <div>
@@ -965,26 +1086,17 @@ function PerSymptomBreakdown({ entries, symptoms }) {
 // --- Manage Entries Tab (Parent Only) ---
 function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
   return (
-    <div className="space-y-4">
-      <SectionTitle title="Összes bejegyzés" subtitle="Szerkeszt vagy töröl bejegyzéseket." />
-      {entries.length === 0 ? (
-        <p className="text-sm text-slate-500">Még nincs rögzített bejegyzés.</p>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              symptoms={symptoms}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              showDate={true}
-              compactButtons={true}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <EntriesSection
+      entries={entries}
+      symptoms={symptoms}
+      title="Összes bejegyzés"
+      subtitle="Szerkeszd vagy töröld a bejegyzéseket, szűrve az időszak szerint."
+      onEdit={onEdit}
+      onDelete={onDelete}
+      showDate={true}
+      compactButtons={true}
+      defaultFilter="7"
+    />
   );
 }
 
