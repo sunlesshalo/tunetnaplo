@@ -342,6 +342,28 @@ function ParentView({ session }) {
     await confirmDeleteEntry(deleteEntryDB, entryId);
   };
 
+  const handleBulkDeleteEntries = async (entryIds) => {
+    if (!entryIds?.length) {
+      return;
+    }
+
+    if (!window.confirm(`Biztosan törlöd a kiválasztott ${entryIds.length} bejegyzést?`)) {
+      return;
+    }
+
+    const failed = [];
+    for (const id of entryIds) {
+      const { error } = await deleteEntryDB(id);
+      if (error) {
+        failed.push({ id, error });
+      }
+    }
+
+    if (failed.length > 0) {
+      alert(`Nem sikerült ${failed.length} bejegyzést törölni. Kérlek próbáld meg újra.`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
       <Header isChild={false} session={session} />
@@ -369,7 +391,13 @@ function ParentView({ session }) {
           />
         )}
         {tab === 2 && (
-          <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={handleDeleteEntry} onEdit={openEditModal} />
+          <ManageEntriesTab
+            entries={entries}
+            symptoms={symptoms}
+            onDelete={handleDeleteEntry}
+            onEdit={openEditModal}
+            onBulkDelete={handleBulkDeleteEntries}
+          />
         )}
         {tab === 3 && <PatternsTab entries={entries} symptoms={symptoms} />}
         {tab === 4 && <ExportTab entries={entries} symptoms={symptoms} />}
@@ -552,7 +580,17 @@ function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milye
 }
 
 // Unified Entry Card Component (used in both child and parent views)
-function EntryCard({ entry, symptoms, onEdit, onDelete, showDate = false, compactButtons = false }) {
+function EntryCard({
+  entry,
+  symptoms,
+  onEdit,
+  onDelete,
+  showDate = false,
+  compactButtons = false,
+  selectable = false,
+  selected = false,
+  onSelectToggle,
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const s = symptoms.find((x) => x.id === (entry.symptom_id || entry.symptomId));
   const time = new Date(entry.timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
@@ -573,34 +611,66 @@ function EntryCard({ entry, symptoms, onEdit, onDelete, showDate = false, compac
   const hasEnv = weather.condition || weather.temp || weather.pressure || env.location || env.timeOfDay !== undefined || env.dayOfWeek !== undefined;
   const hasMedia = (entry.photos && entry.photos.length > 0) || entry.voice_note;
 
+  const toggleSelect = (event) => {
+    event.stopPropagation();
+    if (onSelectToggle) {
+      onSelectToggle(entry.id);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div
+      className={`rounded-xl border bg-white ${
+        selectable && selected ? "border-sky-300 ring-2 ring-sky-200" : "border-slate-200"
+      }`}
+    >
       <div className="p-3">
-        <div className={compactButtons ? "flex items-start justify-between mb-2" : "flex items-center justify-between mb-1"}>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-3 flex-1 text-left"
-          >
-            <span className="text-2xl">{s?.emoji ?? "❓"}</span>
-            <div className="flex-1">
-              <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
-              <div className="text-xs text-slate-500">
-                {showDate && <>{entry.date} • </>}
-                {time}
-                {entry.duration && <> • {formatDuration(entry.duration)}</>}
-              </div>
-            </div>
-            {(hasContext || hasEnv || hasMedia) && (
-              <span className="text-slate-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
+        <div
+          className={
+            compactButtons
+              ? "flex items-start justify-between mb-2"
+              : "flex items-center justify-between mb-1"
+          }
+        >
+          <div className="flex items-start gap-2 flex-1">
+            {selectable && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={toggleSelect}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1.5 h-4 w-4 accent-sky-500"
+              />
             )}
-          </button>
-          {!compactButtons && (
-            <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold ml-2">{entry.intensity}</span>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-3 flex-1 text-left"
+            >
+              <span className="text-2xl">{s?.emoji ?? "❓"}</span>
+              <div className="flex-1">
+                <div className="font-medium">{s?.name ?? "Ismeretlen"}</div>
+                <div className="text-xs text-slate-500">
+                  {showDate && <>{entry.date} • </>}
+                  {time}
+                  {entry.duration && <> • {formatDuration(entry.duration)}</>}
+                </div>
+              </div>
+              {(hasContext || hasEnv || hasMedia) && (
+                <span className="text-slate-400 text-xs">{isExpanded ? "▼" : "▶"}</span>
+              )}
+            </button>
+          </div>
+          {!selectable && !compactButtons && (
+            <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold ml-2">
+              {entry.intensity}
+            </span>
           )}
-          {compactButtons && (onEdit || onDelete) && (
+          {!selectable && compactButtons && (onEdit || onDelete) && (
             <div className="flex gap-1 ml-2">
               {onEdit && (
                 <button
+                  type="button"
                   onClick={() => onEdit(entry)}
                   className="text-sky-600 hover:text-sky-700 px-2 py-1 rounded-lg hover:bg-sky-50 text-sm"
                 >
@@ -609,6 +679,7 @@ function EntryCard({ entry, symptoms, onEdit, onDelete, showDate = false, compac
               )}
               {onDelete && (
                 <button
+                  type="button"
                   onClick={() => onDelete(entry.id)}
                   className="text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 text-sm"
                 >
@@ -748,7 +819,7 @@ function EntryCard({ entry, symptoms, onEdit, onDelete, showDate = false, compac
           )}
 
           {/* Edit/Delete buttons (if callbacks provided) */}
-          {(onEdit || onDelete) && !compactButtons && (
+          {(onEdit || onDelete) && !compactButtons && !selectable && (
             <div className="flex gap-2 pt-2">
               {onEdit && (
                 <button
@@ -795,12 +866,16 @@ function EntriesSection({
     expand: "Összes bejegyzés megtekintése",
     collapse: "⟲ Csak az utolsó bejegyzések",
   },
+  selectable = false,
+  onBulkDelete,
 }) {
   const INITIAL_VISIBLE = 30;
   const LOAD_STEP = 30;
   const [expanded, setExpanded] = useState(!collapsible);
   const [filterId, setFilterId] = useState(collapsible ? previewFilter : defaultFilter);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const isPreview = collapsible && !expanded;
   const effectiveShowFilter = !isPreview && showFilter;
@@ -810,6 +885,13 @@ function EntriesSection({
   useEffect(() => {
     setExpanded(!collapsible);
   }, [collapsible]);
+
+  useEffect(() => {
+    if (!selectable) {
+      setSelectionMode(false);
+      setSelectedIds([]);
+    }
+  }, [selectable]);
 
   useEffect(() => {
     setFilterId(effectiveDefaultFilter);
@@ -826,6 +908,14 @@ function EntriesSection({
     }
     return entries;
   }, [entries, isPreview, previewCount]);
+
+  useEffect(() => {
+    if (!selectionMode) {
+      return;
+    }
+    const allowedIds = new Set(sourceEntries.map((entry) => entry.id));
+    setSelectedIds((prev) => prev.filter((id) => allowedIds.has(id)));
+  }, [sourceEntries, selectionMode]);
 
   const filteredEntries = useMemo(() => {
     if (!Array.isArray(sourceEntries) || sourceEntries.length === 0) {
@@ -858,10 +948,100 @@ function EntriesSection({
   const displayTitle = isPreview ? (previewTitle ?? title) : title;
   const displaySubtitle = isPreview ? (previewSubtitle ?? subtitle) : subtitle;
 
+  const selectedCount = selectedIds.length;
+  const bulkDeleteDisabled = selectedCount === 0;
+
+  const toggleSelectionMode = () => {
+    if (!selectable) return;
+    setSelectionMode((prev) => {
+      const next = !prev;
+      if (next && collapsible) {
+        setExpanded(true);
+      }
+      if (!next) {
+        setSelectedIds([]);
+      }
+      return next;
+    });
+  };
+
+  const handleEntrySelectToggle = (entryId) => {
+    setSelectedIds((prev) =>
+      prev.includes(entryId)
+        ? prev.filter((id) => id !== entryId)
+        : [...prev, entryId]
+    );
+  };
+
+  const selectAll = () => {
+    const allIds = filteredEntries.map((entry) => entry.id);
+    setSelectedIds(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!onBulkDelete || bulkDeleteDisabled) return;
+    await onBulkDelete(selectedIds);
+    setSelectedIds([]);
+    setSelectionMode(false);
+  };
+
   return (
     <section className="space-y-3">
-      {(displayTitle || displaySubtitle) && (
-        <SectionTitle title={displayTitle} subtitle={displaySubtitle} />
+      {(displayTitle || displaySubtitle || selectable) && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {(displayTitle || displaySubtitle) && (
+            <SectionTitle title={displayTitle} subtitle={displaySubtitle} />
+          )}
+          {selectable && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectionMode}
+                className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+              >
+                {selectionMode ? "Kijelölés vége" : "Tömeges kijelölés"}
+              </button>
+              {selectionMode && (
+                <>
+                  <span className="text-sm text-slate-500">
+                    Kijelölve: {selectedCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-sky-300 hover:text-sky-600"
+                  >
+                    Mind kijelöl
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-sky-300 hover:text-sky-600"
+                    disabled={bulkDeleteDisabled}
+                  >
+                    Kijelölés törlése
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-medium text-white transition ${
+                      bulkDeleteDisabled
+                        ? "bg-red-200 cursor-not-allowed"
+                        : "bg-red-500 hover:bg-red-600"
+                    }`}
+                    disabled={bulkDeleteDisabled}
+                  >
+                    Kijelöltek törlése
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {effectiveShowFilter && (
@@ -894,10 +1074,13 @@ function EntriesSection({
               key={entry.id}
               entry={entry}
               symptoms={symptoms}
-              onEdit={onEdit}
-              onDelete={onDelete}
+              onEdit={selectionMode ? undefined : onEdit}
+              onDelete={selectionMode ? undefined : onDelete}
               showDate={showDate}
               compactButtons={compactButtons}
+              selectable={selectionMode}
+              selected={selectedIds.includes(entry.id)}
+              onSelectToggle={handleEntrySelectToggle}
             />
           ))}
         </div>
@@ -920,7 +1103,12 @@ function EntriesSection({
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+            className={`inline-flex items-center justify-center px-4 py-2 rounded-2xl border text-sm font-medium ${
+              selectionMode
+                ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                : "border-slate-300 text-slate-700 hover:border-sky-300 hover:text-sky-600"
+            }`}
+            disabled={selectionMode}
           >
             {expanded ? toggleLabels.collapse : toggleLabels.expand}
           </button>
@@ -1140,7 +1328,7 @@ function PerSymptomBreakdown({ entries, symptoms }) {
 }
 
 // --- Manage Entries Tab (Parent Only) ---
-function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
+function ManageEntriesTab({ entries, symptoms, onDelete, onEdit, onBulkDelete }) {
   return (
     <EntriesSection
       entries={entries}
@@ -1152,6 +1340,8 @@ function ManageEntriesTab({ entries, symptoms, onDelete, onEdit }) {
       showDate={true}
       compactButtons={true}
       defaultFilter="7"
+      selectable={true}
+      onBulkDelete={onBulkDelete}
     />
   );
 }
