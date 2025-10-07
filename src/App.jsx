@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
@@ -9,16 +9,9 @@ import PhotoUpload from "./PhotoUpload";
 import VoiceRecorder from "./VoiceRecorder";
 import PatternsTab from "./PatternsTab";
 import { generateMedicalPDF } from "./pdfExport";
-
-// --- Utility helpers ---
-const LS_KEYS = {
-  symptoms: "symptoms_v1",
-  entries: "entries_v1",
-  parentPin: "parent_pin_v1",
-};
+import { useEntryModal } from "./useEntryModal";
 
 const todayISO = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-const uid = () => Math.random().toString(36).slice(2, 9);
 
 // Auto-capture environmental context
 const captureEnvironment = async () => {
@@ -63,7 +56,19 @@ const captureEnvironment = async () => {
   return env;
 };
 
-const DEFAULT_SYMPTOMS = [];
+const confirmDeleteEntry = async (deleteFn, entryId) => {
+  if (!window.confirm("Biztosan törölni szeretnéd ezt a bejegyzést?")) {
+    return false;
+  }
+
+  const { error } = await deleteFn(entryId);
+  if (error) {
+    alert(`Hiba a törlésnél: ${error}`);
+    return false;
+  }
+
+  return true;
+};
 
 // Expanded emoji selection - health and symptom related
 const EMOJI_SET = [
@@ -169,118 +174,54 @@ function ChildView({ session }) {
     return allSymptoms.filter(s => !s.parentOnly);
   }, [allSymptoms]);
 
-  // Modal state for quick log
-  const [activeSymptom, setActiveSymptom] = useState(null);
-  const [editingEntry, setEditingEntry] = useState(null);
-  const [intensity, setIntensity] = useState(5);
-  const [note, setNote] = useState("");
-  const [duration, setDuration] = useState("");
-  // Context state
-  const [mood, setMood] = useState("");
-  const [energy, setEnergy] = useState("");
-  const [activity, setActivity] = useState("");
-  // Media state
-  const [photos, setPhotos] = useState([]);
-  const [voiceNote, setVoiceNote] = useState(null);
+  const {
+    activeSymptom,
+    editingEntry,
+    intensity,
+    setIntensity,
+    note,
+    setNote,
+    duration,
+    setDuration,
+    mood,
+    setMood,
+    energy,
+    setEnergy,
+    activity,
+    setActivity,
+    photos,
+    setPhotos,
+    voiceNote,
+    setVoiceNote,
+    openLogModal,
+    openEditModal,
+    closeLogModal,
+    saveEntry,
+  } = useEntryModal({
+    symptoms: allSymptoms,
+    addEntry,
+    updateEntry,
+    getEnvironment: captureEnvironment,
+    isParentMode: false,
+    allowSymptomChangeOnEdit: true,
+  });
 
-  const openLogModal = (symptom) => {
-    setActiveSymptom(symptom);
-    setEditingEntry(null);
-    setIntensity(5);
-    setNote("");
-    setDuration("");
-    setMood("");
-    setEnergy("");
-    setActivity("");
-    setPhotos([]);
-    setVoiceNote(null);
-  };
-
-  const openEditModal = (entry) => {
-    const symptom = allSymptoms.find(s => s.id === entry.symptom_id);
-    setActiveSymptom(symptom);
-    setEditingEntry(entry);
-    setIntensity(entry.intensity);
-    setNote(entry.note || "");
-    setDuration(entry.duration ? entry.duration.toString() : "");
-    setMood(entry.context?.mood || "");
-    setEnergy(entry.context?.energy || "");
-    setActivity(entry.context?.activity || "");
-    setPhotos(entry.photos || []);
-    setVoiceNote(entry.voice_note || null);
-  };
-
-  const closeLogModal = () => {
-    setActiveSymptom(null);
-    setEditingEntry(null);
-  };
-
-  const saveEntry = async () => {
-    if (!activeSymptom) return;
-
-    const contextData = {
-      mood: mood || null,
-      energy: energy || null,
-      activity: activity || null,
-    };
-
-    if (editingEntry) {
-      // Update existing entry
-      const { error } = await updateEntry(editingEntry.id, {
-        symptom_id: activeSymptom.id,
-        intensity: Number(intensity),
-        duration: duration ? Number(duration) : null,
-        note: note.trim(),
-        context: contextData,
-        photos: photos.length > 0 ? photos : null,
-        voice_note: voiceNote,
-      });
-
-      if (error) {
-        alert(`Hiba a mentésnél: ${error}`);
-        return;
-      }
-    } else {
-      // Create new entry
-      const now = new Date();
-      const environment = await captureEnvironment();
-
-      const { error } = await addEntry({
-        date: todayISO(),
-        timestamp: now.toISOString(),
-        symptom_id: activeSymptom.id,
-        intensity: Number(intensity),
-        duration: duration ? Number(duration) : null,
-        note: note.trim(),
-        environment,
-        context: contextData,
-        photos: photos.length > 0 ? photos : null,
-        voice_note: voiceNote,
-      });
-
-      if (error) {
-        alert(`Hiba a mentésnél: ${error}`);
-        return;
-      }
+  const handleSaveEntry = async () => {
+    const { error } = await saveEntry();
+    if (error) {
+      alert(error);
     }
-
-    closeLogModal();
   };
 
-  const deleteEntry = async (entryId) => {
-    if (window.confirm("Biztosan törölni szeretnéd ezt a bejegyzést?")) {
-      const { error } = await deleteEntryDB(entryId);
-      if (error) {
-        alert(`Hiba a törlésnél: ${error}`);
-      }
-    }
+  const handleDeleteEntry = async (entryId) => {
+    await confirmDeleteEntry(deleteEntryDB, entryId);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
       <Header isChild={true} session={session} />
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-6">
-        <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} onEdit={openEditModal} onDelete={deleteEntry} />
+        <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} onEdit={openEditModal} onDelete={handleDeleteEntry} />
       </main>
 
       {activeSymptom && (
@@ -306,7 +247,7 @@ function ChildView({ session }) {
           isParentMode={false}
           isEditing={!!editingEntry}
           onClose={closeLogModal}
-          onSave={saveEntry}
+          onSave={handleSaveEntry}
         />
       )}
     </div>
@@ -334,109 +275,51 @@ function ParentView({ session }) {
     deleteEntry: deleteEntryDB
   } = useEntries(userId);
 
-  // Modal state
-  const [activeSymptom, setActiveSymptom] = useState(null);
-  const [editingEntry, setEditingEntry] = useState(null);
-  const [intensity, setIntensity] = useState(5);
-  const [note, setNote] = useState("");
-  const [duration, setDuration] = useState("");
-  // Context state
-  const [mood, setMood] = useState("");
-  const [energy, setEnergy] = useState("");
-  const [activity, setActivity] = useState("");
-  const [foodNote, setFoodNote] = useState("");
-  const [medicationNote, setMedicationNote] = useState("");
-  // Media state
-  const [photos, setPhotos] = useState([]);
-  const [voiceNote, setVoiceNote] = useState(null);
+  const {
+    activeSymptom,
+    editingEntry,
+    intensity,
+    setIntensity,
+    note,
+    setNote,
+    duration,
+    setDuration,
+    mood,
+    setMood,
+    energy,
+    setEnergy,
+    activity,
+    setActivity,
+    foodNote,
+    setFoodNote,
+    medicationNote,
+    setMedicationNote,
+    photos,
+    setPhotos,
+    voiceNote,
+    setVoiceNote,
+    openLogModal,
+    openEditModal,
+    closeLogModal,
+    saveEntry,
+  } = useEntryModal({
+    symptoms,
+    addEntry,
+    updateEntry,
+    getEnvironment: captureEnvironment,
+    isParentMode: true,
+    allowSymptomChangeOnEdit: false,
+    errorLabels: {
+      create: "Hiba a mentésnél",
+      update: "Hiba a módosításnál",
+    },
+  });
 
-  const openLogModal = (symptom) => {
-    setActiveSymptom(symptom);
-    setEditingEntry(null);
-    setIntensity(5);
-    setNote("");
-    setDuration("");
-    setMood("");
-    setEnergy("");
-    setActivity("");
-    setFoodNote("");
-    setMedicationNote("");
-    setPhotos([]);
-    setVoiceNote(null);
-  };
-
-  const openEditModal = (entry) => {
-    const symptom = symptoms.find((s) => s.id === (entry.symptom_id || entry.symptomId));
-    setActiveSymptom(symptom);
-    setEditingEntry(entry);
-    setIntensity(entry.intensity);
-    setNote(entry.note || "");
-    setDuration(entry.duration?.toString() || "");
-    const ctx = entry.context || {};
-    setMood(ctx.mood || "");
-    setEnergy(ctx.energy || "");
-    setActivity(ctx.activity || "");
-    setFoodNote(ctx.food || "");
-    setMedicationNote(ctx.medication || "");
-    setPhotos(entry.photos || []);
-    setVoiceNote(entry.voice_note || null);
-  };
-
-  const closeLogModal = () => {
-    setActiveSymptom(null);
-    setEditingEntry(null);
-  };
-
-  const saveEntry = async () => {
-    if (!activeSymptom) return;
-
-    const contextData = {
-      mood: mood || null,
-      energy: energy || null,
-      activity: activity || null,
-      food: foodNote.trim() || null,
-      medication: medicationNote.trim() || null,
-    };
-
-    if (editingEntry) {
-      // Edit existing entry - preserve original timestamp and environment
-      const { error } = await updateEntry(editingEntry.id, {
-        intensity: Number(intensity),
-        duration: duration ? Number(duration) : null,
-        note: note.trim(),
-        context: contextData,
-        photos: photos.length > 0 ? photos : null,
-        voice_note: voiceNote,
-      });
-
-      if (error) {
-        alert(`Hiba a módosításnál: ${error}`);
-        return;
-      }
-    } else {
-      // Create new entry
-      const now = new Date();
-      const environment = await captureEnvironment();
-
-      const { error } = await addEntry({
-        date: todayISO(),
-        timestamp: now.toISOString(),
-        symptom_id: activeSymptom.id,
-        intensity: Number(intensity),
-        duration: duration ? Number(duration) : null,
-        note: note.trim(),
-        environment,
-        context: contextData,
-        photos: photos.length > 0 ? photos : null,
-        voice_note: voiceNote,
-      });
-
-      if (error) {
-        alert(`Hiba a mentésnél: ${error}`);
-        return;
-      }
+  const handleSaveEntry = async () => {
+    const { error } = await saveEntry();
+    if (error) {
+      alert(error);
     }
-    closeLogModal();
   };
 
   const deleteSymptom = async (symptomId) => {
@@ -448,13 +331,8 @@ function ParentView({ session }) {
     }
   };
 
-  const deleteEntry = async (entryId) => {
-    if (window.confirm("Biztosan törölni szeretnéd ezt a bejegyzést?")) {
-      const { error } = await deleteEntryDB(entryId);
-      if (error) {
-        alert(`Hiba a törlésnél: ${error}`);
-      }
-    }
+  const handleDeleteEntry = async (entryId) => {
+    await confirmDeleteEntry(deleteEntryDB, entryId);
   };
 
   return (
@@ -478,7 +356,7 @@ function ParentView({ session }) {
           />
         )}
         {tab === 2 && (
-          <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={deleteEntry} onEdit={openEditModal} />
+          <ManageEntriesTab entries={entries} symptoms={symptoms} onDelete={handleDeleteEntry} onEdit={openEditModal} />
         )}
         {tab === 3 && <PatternsTab entries={entries} symptoms={symptoms} />}
         {tab === 4 && <ExportTab entries={entries} symptoms={symptoms} />}
@@ -513,7 +391,7 @@ function ParentView({ session }) {
           isParentMode={true}
           isEditing={!!editingEntry}
           onClose={closeLogModal}
-          onSave={saveEntry}
+          onSave={handleSaveEntry}
         />
       )}
     </div>

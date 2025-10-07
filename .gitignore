@@ -31,3 +31,4 @@ src/autoLoginConfig.js
 *.sln
 *.sw?
 .vercel
+.env*.local
