@@ -504,17 +504,6 @@ function ParentBottomNav({ tab, setTab }) {
 
 // --- Home Tab ---
 function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milyen tünet volt?", subtitle = "Koppints egy kártyára, majd állítsd be az erősséget." }) {
-  const [showAllEntries, setShowAllEntries] = useState(false);
-
-  const recentEntries = useMemo(() => entries.slice(0, 5), [entries]);
-  const hasMoreEntries = entries.length > 5;
-
-  const entriesToDisplay = showAllEntries ? entries : recentEntries;
-  const listTitle = showAllEntries ? "Összes bejegyzés" : "Legutóbbi bejegyzések";
-  const listSubtitle = showAllEntries
-    ? "Böngészd a teljes naplót és szűrd az időszakot."
-    : "Az utolsó öt rögzítés gyors áttekintése.";
-
   return (
     <div className="space-y-6">
       <SectionTitle title={title} subtitle={subtitle} />
@@ -537,29 +526,27 @@ function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milye
         })}
       </div>
       <EntriesSection
-        entries={entriesToDisplay}
+        entries={entries}
         symptoms={symptoms}
-        title={listTitle}
-        subtitle={listSubtitle}
+        title="Összes bejegyzés"
+        subtitle="Böngészd a teljes naplót és szűrd az időszakot."
         onEdit={onEdit}
         onDelete={onDelete}
         showDate={true}
         compactButtons={false}
-        defaultFilter={showAllEntries ? "7" : "all"}
-        showFilter={showAllEntries}
-        allowLoadMore={showAllEntries}
+        defaultFilter="7"
+        showFilter={true}
+        allowLoadMore={true}
+        collapsible={true}
+        previewCount={5}
+        previewTitle="Legutóbbi bejegyzések"
+        previewSubtitle="Az utolsó öt rögzítés gyors áttekintése."
+        previewFilter="all"
+        toggleLabels={{
+          expand: "Összes bejegyzés megtekintése",
+          collapse: "⟲ Csak az utolsó 5 bejegyzés",
+        }}
       />
-      {hasMoreEntries && (
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setShowAllEntries((prev) => !prev)}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
-          >
-            {showAllEntries ? "⟲ Csak az utolsó 5 bejegyzés" : "Összes bejegyzés megtekintése"}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -799,32 +786,59 @@ function EntriesSection({
   defaultFilter = "7",
   showFilter = true,
   allowLoadMore = true,
+  collapsible = false,
+  previewCount = 5,
+  previewTitle = "Legutóbbi bejegyzések",
+  previewSubtitle = "Az utolsó bejegyzések gyors áttekintése.",
+  previewFilter = "all",
+  toggleLabels = {
+    expand: "Összes bejegyzés megtekintése",
+    collapse: "⟲ Csak az utolsó bejegyzések",
+  },
 }) {
   const INITIAL_VISIBLE = 30;
   const LOAD_STEP = 30;
-  const [filterId, setFilterId] = useState(defaultFilter);
+  const [expanded, setExpanded] = useState(!collapsible);
+  const [filterId, setFilterId] = useState(collapsible ? previewFilter : defaultFilter);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
+  const isPreview = collapsible && !expanded;
+  const effectiveShowFilter = !isPreview && showFilter;
+  const effectiveAllowLoadMore = !isPreview && allowLoadMore;
+  const effectiveDefaultFilter = isPreview ? previewFilter : defaultFilter;
+
   useEffect(() => {
-    setFilterId(defaultFilter);
-  }, [defaultFilter]);
+    setExpanded(!collapsible);
+  }, [collapsible]);
+
+  useEffect(() => {
+    setFilterId(effectiveDefaultFilter);
+  }, [effectiveDefaultFilter]);
 
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
-  }, [filterId, entries.length]);
+  }, [filterId, entries.length, expanded]);
+
+  const sourceEntries = useMemo(() => {
+    if (!Array.isArray(entries)) return [];
+    if (isPreview) {
+      return entries.slice(0, previewCount);
+    }
+    return entries;
+  }, [entries, isPreview, previewCount]);
 
   const filteredEntries = useMemo(() => {
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (!Array.isArray(sourceEntries) || sourceEntries.length === 0) {
       return [];
     }
 
-    if (!showFilter) {
-      return entries;
+    if (!effectiveShowFilter) {
+      return sourceEntries;
     }
 
     const filter = ENTRY_FILTERS.find((f) => f.id === filterId) || ENTRY_FILTERS[0];
     if (!filter.days) {
-      return entries;
+      return sourceEntries;
     }
 
     const start = new Date();
@@ -832,20 +846,25 @@ function EntriesSection({
     start.setDate(start.getDate() - (filter.days - 1));
     const startKey = start.toISOString().slice(0, 10);
 
-    return entries.filter((entry) => entry.date && entry.date >= startKey);
-  }, [entries, filterId, showFilter]);
+    return sourceEntries.filter((entry) => entry.date && entry.date >= startKey);
+  }, [sourceEntries, filterId, effectiveShowFilter]);
 
-  const visibleEntries = allowLoadMore
+  const visibleEntries = effectiveAllowLoadMore
     ? filteredEntries.slice(0, visibleCount)
     : filteredEntries;
 
-  const hasMore = allowLoadMore && filteredEntries.length > visibleEntries.length;
+  const hasMore = effectiveAllowLoadMore && filteredEntries.length > visibleEntries.length;
+
+  const displayTitle = isPreview ? (previewTitle ?? title) : title;
+  const displaySubtitle = isPreview ? (previewSubtitle ?? subtitle) : subtitle;
 
   return (
     <section className="space-y-3">
-      {title && <SectionTitle title={title} subtitle={subtitle} />}
+      {(displayTitle || displaySubtitle) && (
+        <SectionTitle title={displayTitle} subtitle={displaySubtitle} />
+      )}
 
-      {showFilter && (
+      {effectiveShowFilter && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {ENTRY_FILTERS.map((filter) => (
             <button
@@ -892,6 +911,18 @@ function EntriesSection({
             className="px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
           >
             További bejegyzések betöltése
+          </button>
+        </div>
+      )}
+
+      {collapsible && entries.length > previewCount && (
+        <div className="text-center pt-1">
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+          >
+            {expanded ? toggleLabels.collapse : toggleLabels.expand}
           </button>
         </div>
       )}
