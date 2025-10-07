@@ -12,6 +12,16 @@ import { useEntryModal } from "./useEntryModal";
 
 const todayISO = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
+const FEEDBACK_EMAIL = (import.meta.env.VITE_FEEDBACK_EMAIL || "").trim();
+const FEEDBACK_FORM_URL = (import.meta.env.VITE_FEEDBACK_FORM_URL || "").trim();
+const FEEDBACK_LINK = (() => {
+  if (FEEDBACK_EMAIL) {
+    const subject = encodeURIComponent("Tünetnapló teszt visszajelzés");
+    return `mailto:${FEEDBACK_EMAIL}?subject=${subject}`;
+  }
+  return FEEDBACK_FORM_URL;
+})();
+
 // Auto-capture environmental context
 const captureEnvironment = async () => {
   const env = {
@@ -230,7 +240,15 @@ function ChildView({ session }) {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
       <Header isChild={true} session={session} />
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-6">
-        <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} onEdit={openEditModal} onDelete={handleDeleteEntry} />
+        <HomeTab
+          symptoms={symptoms}
+          onLog={openLogModal}
+          entries={entries}
+          onEdit={openEditModal}
+          onDelete={handleDeleteEntry}
+          isParentMode={false}
+        />
+        <FeedbackBanner variant="child" />
       </main>
 
       {activeSymptom && (
@@ -378,6 +396,8 @@ function ParentView({ session }) {
             entries={entries}
             onEdit={openEditModal}
             onDelete={handleDeleteEntry}
+            isParentMode={true}
+            onNavigateToSymptoms={() => setTab(1)}
           />
         )}
         {tab === 1 && (
@@ -403,6 +423,8 @@ function ParentView({ session }) {
         )}
         {tab === 3 && <PatternsTab entries={entries} symptoms={symptoms} />}
         {tab === 4 && <ExportTab entries={entries} symptoms={symptoms} />}
+
+        <FeedbackBanner variant="parent" />
       </main>
 
       <ParentBottomNav tab={tab} setTab={setTab} />
@@ -533,28 +555,53 @@ function ParentBottomNav({ tab, setTab }) {
 }
 
 // --- Home Tab ---
-function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milyen tünet volt?", subtitle = "Koppints egy kártyára, majd állítsd be az erősséget." }) {
+function HomeTab({
+  symptoms,
+  onLog,
+  entries,
+  onEdit,
+  onDelete,
+  title = "Ma milyen tünet volt?",
+  subtitle = "Koppints egy kártyára, majd állítsd be az erősséget.",
+  isParentMode = false,
+  onNavigateToSymptoms,
+}) {
+  const hasSymptoms = symptoms.length > 0;
+  const hasEntries = entries.length > 0;
+
   return (
     <div className="space-y-6">
       <SectionTitle title={title} subtitle={subtitle} />
-      <div className="grid grid-cols-2 gap-3">
-        {symptoms.map((s) => {
-          // If name is long (>12 chars), make button span full width
-          const isLongName = s.name.length > 12;
-          return (
-            <button
-              key={s.id}
-              onClick={() => onLog(s)}
-              className={`rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition ${
-                isLongName ? 'col-span-2' : ''
-              }`}
-            >
-              <span className="text-3xl flex-shrink-0" aria-hidden>{s.emoji}</span>
-              <span className="text-lg font-medium break-words">{s.name}</span>
-            </button>
-          );
-        })}
-      </div>
+
+      {!hasSymptoms && (
+        <EmptyStateCard
+          isParentMode={isParentMode}
+          onNavigateToSymptoms={onNavigateToSymptoms}
+        />
+      )}
+
+      {hasSymptoms && (
+        <div className="grid grid-cols-2 gap-3">
+          {symptoms.map((s) => {
+            const isLongName = s.name.length > 12;
+            return (
+              <button
+                key={s.id}
+                onClick={() => onLog(s)}
+                className={`rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition ${
+                  isLongName ? 'col-span-2' : ''
+                }`}
+              >
+                <span className="text-3xl flex-shrink-0" aria-hidden>{s.emoji}</span>
+                <span className="text-lg font-medium break-words">{s.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {!hasEntries && <QuickStartCard isParentMode={isParentMode} />}
+
       <EntriesSection
         entries={entries}
         symptoms={symptoms}
@@ -577,6 +624,82 @@ function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milye
           collapse: "⟲ Csak az utolsó 5 bejegyzés",
         }}
       />
+    </div>
+  );
+}
+
+function EmptyStateCard({ isParentMode, onNavigateToSymptoms }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4">
+      <h3 className="text-base font-semibold text-slate-700 mb-2">Még nincs elérhető tünet</h3>
+      <p className="text-sm text-slate-500 mb-3">
+        {isParentMode
+          ? "Adj hozzá tüneteket, hogy a család gyorsan rögzíthesse a bejegyzéseket."
+          : "Kérd meg a szülőt, hogy adjon hozzá tüneteket a szülői felületen."}
+      </p>
+      {isParentMode && onNavigateToSymptoms && (
+        <button
+          type="button"
+          onClick={onNavigateToSymptoms}
+          className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white hover:bg-sky-600"
+        >
+          ➕ Új tünet felvétele
+        </button>
+      )}
+    </div>
+  );
+}
+
+function QuickStartCard({ isParentMode }) {
+  const checklist = isParentMode
+    ? [
+        "Hozz létre 3-5 gyakori tünetet a család számára.",
+        "Próbálj ki egy bejegyzés felvételét fényképpel vagy hangjegyzettel.",
+        "Nézd meg a Mintázatok fület az összegzéshez.",
+      ]
+    : [
+        "Válassz ki egy tünetet a rögzítéshez.",
+        "Add meg az erősséget és egy rövid jegyzetet.",
+        "Készíts fotót vagy hangjegyzetet, ha szeretnél.",
+      ];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+      <h3 className="text-base font-semibold text-slate-700 mb-2">Gyors kezdés</h3>
+      <ul className="list-disc list-inside space-y-1">
+        {checklist.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FeedbackBanner({ variant = "parent" }) {
+  if (!FEEDBACK_LINK) {
+    return null;
+  }
+
+  const isParent = variant === "parent";
+  const message = isParent
+    ? "Segítsd a fejlesztést: oszd meg, mi működik jól és mi szorul javításra."
+    : "Szólj a szülőnek, vagy küldjetek visszajelzést, ha valami nem működik.";
+  const actionLabel = FEEDBACK_EMAIL ? "Visszajelzés e-mailben" : "Visszajelzés küldése";
+  const linkProps = FEEDBACK_LINK.startsWith("http")
+    ? { href: FEEDBACK_LINK, target: "_blank", rel: "noopener noreferrer" }
+    : { href: FEEDBACK_LINK };
+
+  return (
+    <div className={`mt-6 ${isParent ? "" : "mt-8"}`}>
+      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+        <p className="mb-3 font-medium">{message}</p>
+        <a
+          {...linkProps}
+          className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+        >
+          {actionLabel}
+        </a>
+      </div>
     </div>
   );
 }
