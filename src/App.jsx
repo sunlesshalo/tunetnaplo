@@ -450,7 +450,7 @@ function Header({ isChild, session }) {
 
 function BottomNav({ tab, setTab }) {
   const items = [
-    { label: "Főlista", icon: "🏠" },
+    { label: "Gyors rögzítés", icon: "🏠" },
     { label: "Új tünet", icon: "➕" },
     { label: "Statisztika", icon: "📊" },
   ];
@@ -476,7 +476,7 @@ function BottomNav({ tab, setTab }) {
 
 function ParentBottomNav({ tab, setTab }) {
   const items = [
-    { label: "Főlista", icon: "🏠" },
+    { label: "Gyors rögzítés", icon: "🏠" },
     { label: "Tünetek", icon: "⚙️" },
     { label: "Bejegyzések", icon: "📝" },
     { label: "Mintázatok", icon: "📊" },
@@ -504,6 +504,17 @@ function ParentBottomNav({ tab, setTab }) {
 
 // --- Home Tab ---
 function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milyen tünet volt?", subtitle = "Koppints egy kártyára, majd állítsd be az erősséget." }) {
+  const [showAllEntries, setShowAllEntries] = useState(false);
+
+  const recentEntries = useMemo(() => entries.slice(0, 5), [entries]);
+  const hasMoreEntries = entries.length > 5;
+
+  const entriesToDisplay = showAllEntries ? entries : recentEntries;
+  const listTitle = showAllEntries ? "Összes bejegyzés" : "Legutóbbi bejegyzések";
+  const listSubtitle = showAllEntries
+    ? "Böngészd a teljes naplót és szűrd az időszakot."
+    : "Az utolsó öt rögzítés gyors áttekintése.";
+
   return (
     <div className="space-y-6">
       <SectionTitle title={title} subtitle={subtitle} />
@@ -526,15 +537,29 @@ function HomeTab({ symptoms, onLog, entries, onEdit, onDelete, title = "Ma milye
         })}
       </div>
       <EntriesSection
-        entries={entries}
+        entries={entriesToDisplay}
         symptoms={symptoms}
-        title="Bejegyzések"
-        subtitle="Szűrd az elmúlt napok bejegyzéseit vagy nézd meg az összeset."
+        title={listTitle}
+        subtitle={listSubtitle}
         onEdit={onEdit}
         onDelete={onDelete}
         showDate={true}
-        defaultFilter="1"
+        compactButtons={false}
+        defaultFilter={showAllEntries ? "7" : "all"}
+        showFilter={showAllEntries}
+        allowLoadMore={showAllEntries}
       />
+      {hasMoreEntries && (
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowAllEntries((prev) => !prev)}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+          >
+            {showAllEntries ? "⟲ Csak az utolsó 5 bejegyzés" : "Összes bejegyzés megtekintése"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
