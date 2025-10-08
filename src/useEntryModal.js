@@ -26,6 +26,7 @@ export function useEntryModal({
   const [medicationNote, setMedicationNote] = useState('');
   const [photos, setPhotos] = useState([]);
   const [voiceNote, setVoiceNote] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
     setIntensity(5);
@@ -38,6 +39,7 @@ export function useEntryModal({
     setMedicationNote('');
     setPhotos([]);
     setVoiceNote(null);
+    setIsSaving(false);
   };
 
   const openLogModal = (symptom) => {
@@ -75,6 +77,7 @@ export function useEntryModal({
   const closeLogModal = () => {
     setActiveSymptom(null);
     setEditingEntry(null);
+    setIsSaving(false);
   };
 
   const buildContext = () => {
@@ -105,48 +108,62 @@ export function useEntryModal({
       return { error: `${errorLabels.create}: nincs kiválasztott tünet` };
     }
 
+    if (isSaving) {
+      return { error: null };
+    }
+
+    setIsSaving(true);
+
     if (!editingEntry) {
-      const environment = typeof getEnvironment === 'function' ? await getEnvironment() : null;
+      try {
+        const environment = typeof getEnvironment === 'function' ? await getEnvironment() : null;
+        const payload = {
+          date: todayISO(),
+          timestamp: new Date().toISOString(),
+          symptom_id: activeSymptom.id,
+          intensity: Number(intensity),
+          duration: duration ? Number(duration) : null,
+          note: note.trim(),
+          environment,
+          context: buildContext(),
+          ...buildMedia(),
+        };
+
+        const { error } = await addEntry(payload);
+        if (error) {
+          return { error: `${errorLabels.create}: ${error}` };
+        }
+
+        closeLogModal();
+        return { error: null };
+      } finally {
+        setIsSaving(false);
+      }
+    }
+
+    try {
       const payload = {
-        date: todayISO(),
-        timestamp: new Date().toISOString(),
-        symptom_id: activeSymptom.id,
         intensity: Number(intensity),
         duration: duration ? Number(duration) : null,
         note: note.trim(),
-        environment,
         context: buildContext(),
         ...buildMedia(),
       };
 
-      const { error } = await addEntry(payload);
+      if (allowSymptomChangeOnEdit) {
+        payload.symptom_id = activeSymptom.id;
+      }
+
+      const { error } = await updateEntry(editingEntry.id, payload);
       if (error) {
-        return { error: `${errorLabels.create}: ${error}` };
+        return { error: `${errorLabels.update}: ${error}` };
       }
 
       closeLogModal();
       return { error: null };
+    } finally {
+      setIsSaving(false);
     }
-
-    const payload = {
-      intensity: Number(intensity),
-      duration: duration ? Number(duration) : null,
-      note: note.trim(),
-      context: buildContext(),
-      ...buildMedia(),
-    };
-
-    if (allowSymptomChangeOnEdit) {
-      payload.symptom_id = activeSymptom.id;
-    }
-
-    const { error } = await updateEntry(editingEntry.id, payload);
-    if (error) {
-      return { error: `${errorLabels.update}: ${error}` };
-    }
-
-    closeLogModal();
-    return { error: null };
   };
 
   return {
@@ -176,5 +193,6 @@ export function useEntryModal({
     openEditModal,
     closeLogModal,
     saveEntry,
+    isSaving,
   };
 }
