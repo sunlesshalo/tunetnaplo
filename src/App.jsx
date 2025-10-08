@@ -216,6 +216,7 @@ function ChildView({ session }) {
     openEditModal,
     closeLogModal,
     saveEntry,
+    isSaving,
   } = useEntryModal({
     symptoms: allSymptoms,
     addEntry,
@@ -275,6 +276,7 @@ function ChildView({ session }) {
           isEditing={!!editingEntry}
           onClose={closeLogModal}
           onSave={handleSaveEntry}
+          isSaving={isSaving}
         />
       )}
     </div>
@@ -329,6 +331,7 @@ function ParentView({ session }) {
     openEditModal,
     closeLogModal,
     saveEntry,
+    isSaving,
   } = useEntryModal({
     symptoms,
     addEntry,
@@ -457,6 +460,7 @@ function ParentView({ session }) {
           isEditing={!!editingEntry}
           onClose={closeLogModal}
           onSave={handleSaveEntry}
+          isSaving={isSaving}
         />
       )}
     </div>
@@ -1570,6 +1574,7 @@ function LogModal({
   userId,
   isParentMode,
   isEditing,
+  isSaving,
   onClose,
   onSave
 }) {
@@ -1798,9 +1803,29 @@ function LogModal({
         </div>
 
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-2xl border border-slate-300 py-3">Mégse</button>
-          <button onClick={onSave} className="flex-1 rounded-2xl bg-sky-500 text-white font-semibold py-3">
-            {isEditing ? "Módosítás" : "Mentés"}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-2xl border border-slate-300 py-3"
+          >
+            Mégse
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            aria-busy={isSaving}
+            className={`flex-1 rounded-2xl font-semibold py-3 text-white transition ${
+              isSaving
+                ? "bg-sky-300 cursor-not-allowed opacity-70"
+                : "bg-sky-500 hover:bg-sky-600 active:bg-sky-700"
+            }`}
+          >
+            {isSaving
+              ? (isEditing ? "Módosítás..." : "Mentés...")
+              : isEditing
+                ? "Módosítás"
+                : "Mentés"}
           </button>
         </div>
       </div>
