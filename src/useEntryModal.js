@@ -16,7 +16,7 @@ export function useEntryModal({
 }) {
   const [activeSymptom, setActiveSymptom] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
-  const [intensity, setIntensity] = useState(5);
+  const [intensity, setIntensity] = useState(1);
   const [note, setNote] = useState('');
   const [duration, setDuration] = useState('');
   const [mood, setMood] = useState('');
@@ -29,7 +29,7 @@ export function useEntryModal({
   const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
-    setIntensity(5);
+    setIntensity(1);
     setNote('');
     setDuration('');
     setMood('');
@@ -59,7 +59,7 @@ export function useEntryModal({
 
     setActiveSymptom(fallbackSymptom);
     setEditingEntry(entry);
-    setIntensity(entry.intensity ?? 5);
+    setIntensity(entry.intensity ?? 1);
     setNote(entry.note || '');
     setDuration(entry.duration ? entry.duration.toString() : '');
 
