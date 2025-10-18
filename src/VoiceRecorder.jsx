@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { uploadVoiceNote, deleteVoiceNote } from './storageHelpers';
+import { uploadVoiceNote, deleteVoiceNote } from './utils/storageHelpers';
 
 export default function VoiceRecorder({ userId, voiceNotePath, onChange }) {
   const [isRecording, setIsRecording] = useState(false);

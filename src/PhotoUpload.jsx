@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { uploadPhoto, deletePhoto } from './storageHelpers';
+import { uploadPhoto, deletePhoto } from './utils/storageHelpers';
 
 export default function PhotoUpload({ userId, photos, onChange }) {
   const [uploading, setUploading] = useState(false);

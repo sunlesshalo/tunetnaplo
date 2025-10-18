@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { analyzePatterns } from './patternAnalysis';
+import { analyzePatterns } from '../../utils/patternAnalysis';
 
 export default function PatternsTab({ entries, symptoms }) {
   const analysis = useMemo(() => {

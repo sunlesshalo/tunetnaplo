@@ -1,5 +1,5 @@
 // Storage helpers for uploading and managing photos and voice notes
-import { supabase } from './supabaseClient';
+import { supabase } from '../supabaseClient';
 
 /**
  * Upload a photo to Supabase Storage
