@@ -1,10 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../../supabaseClient";
+import { signOut } from "../../googleClient";
 
 export default function Header({ isChild, session }) {
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
+    window.location.reload(); // Reload to clear state
   };
 
   return (

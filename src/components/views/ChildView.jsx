@@ -3,14 +3,14 @@ import Header from "../layout/Header";
 import HomeTab from "./HomeTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
-import { useSymptoms, useEntries } from "../../hooks/useSupabaseData";
+import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { useEntryModal } from "../../hooks/useEntryModal";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ChildView({ session }) {
   const userId = session?.user?.id;
 
-  // Use Supabase hooks for data
+  // Use Google Sheets hooks for data
   const { symptoms: allSymptoms, loading: symptomsLoading } = useSymptoms(userId);
   const { entries, loading: entriesLoading, addEntry, updateEntry, deleteEntry: deleteEntryDB } = useEntries(userId);
 

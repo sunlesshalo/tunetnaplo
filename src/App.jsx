@@ -1,57 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import { supabase } from "./supabaseClient";
+import { initGoogleClient, onAuthStateChanged, isSignedIn, getCurrentUser } from "./googleClient";
 import Auth from "./Auth";
 import ChildView from "./components/views/ChildView";
 import ParentView from "./components/views/ParentView";
 
 // --- Main App with Routing ---
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const initAuth = async () => {
-      // Check current session
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        // Initialize Google API client
+        await initGoogleClient();
 
-      if (session) {
-        setSession(session);
-        setLoading(false);
-        return;
-      }
-
-      // Auto-login if credentials are configured via environment
-      const autoEmail = import.meta.env.VITE_AUTO_LOGIN_EMAIL;
-      const autoPassword = import.meta.env.VITE_AUTO_LOGIN_PASSWORD;
-
-      if (autoEmail && autoPassword && autoEmail !== 'your-email@example.com') {
-        console.log('🔐 Auto-logging in...');
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: autoEmail,
-          password: autoPassword,
-        });
-
-        if (error) {
-          console.error('Auto-login failed:', error.message);
-        } else {
-          setSession(data.session);
+        // Check if user is already signed in
+        if (isSignedIn()) {
+          const currentUser = getCurrentUser();
+          setUser(currentUser);
         }
-      }
 
-      setLoading(false);
+        // Listen for auth state changes
+        onAuthStateChanged((newUser) => {
+          setUser(newUser);
+        });
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initAuth();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -65,9 +47,20 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <Auth />;
   }
+
+  // Create session object compatible with existing components
+  const session = {
+    user: {
+      id: user.getBasicProfile().getId(),
+      email: user.getBasicProfile().getEmail(),
+      user_metadata: {
+        name: user.getBasicProfile().getName(),
+      },
+    },
+  };
 
   return (
     <Routes>

@@ -8,14 +8,14 @@ import PatternsTab from "../stats/PatternsTab";
 import ExportTab from "./parent-tabs/ExportTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
-import { useSymptoms, useEntries } from "../../hooks/useSupabaseData";
+import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { useEntryModal } from "../../hooks/useEntryModal";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
 
-  // Use Supabase hooks for data
+  // Use Google Sheets hooks for data
   const userId = session?.user?.id;
   const {
     symptoms,
