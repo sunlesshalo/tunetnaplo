@@ -13,21 +13,45 @@ const APP_FOLDER_NAME = 'Tünetnapló';
 
 /**
  * Find or create the Tünetnapló folder
+ * Handles duplicate folders by merging them into the oldest one
  */
 async function findOrCreateAppFolder() {
   try {
     const gapi = getGapi();
 
-    // Search for existing folder in root
+    // Search for ALL existing folders with this name (handles duplicates from multiple devices)
     const response = await gapi.client.drive.files.list({
       q: `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`,
-      fields: 'files(id, name)',
+      fields: 'files(id, name, createdTime)',
       spaces: 'drive',
+      orderBy: 'createdTime', // Oldest first
     });
 
     const folders = response.result.files || [];
 
-    if (folders.length > 0) {
+    if (folders.length > 1) {
+      // Multiple folders found - merge them into the oldest one
+      console.log(`⚠️ Found ${folders.length} duplicate Tünetnapló folders, merging...`);
+      const primaryFolder = folders[0]; // Oldest folder
+
+      // Move contents from duplicate folders to primary folder
+      for (let i = 1; i < folders.length; i++) {
+        const duplicateFolder = folders[i];
+        await mergeFolderContents(duplicateFolder.id, primaryFolder.id);
+
+        // Delete the now-empty duplicate folder
+        try {
+          await gapi.client.drive.files.delete({ fileId: duplicateFolder.id });
+          console.log(`🗑️ Deleted duplicate folder: ${duplicateFolder.id}`);
+        } catch (deleteError) {
+          console.error('Error deleting duplicate folder:', deleteError);
+        }
+      }
+
+      return primaryFolder.id;
+    }
+
+    if (folders.length === 1) {
       return folders[0].id;
     }
 
@@ -45,6 +69,52 @@ async function findOrCreateAppFolder() {
   } catch (error) {
     console.error('Error finding/creating app folder:', error);
     throw error;
+  }
+}
+
+/**
+ * Merge contents from source folder to target folder
+ */
+async function mergeFolderContents(sourceFolderId, targetFolderId) {
+  try {
+    const gapi = getGapi();
+
+    // Get all files in source folder
+    const response = await gapi.client.drive.files.list({
+      q: `'${sourceFolderId}' in parents and trashed=false`,
+      fields: 'files(id, name, mimeType)',
+      spaces: 'drive',
+    });
+
+    const files = response.result.files || [];
+
+    for (const file of files) {
+      // Check if file with same name already exists in target
+      const existingResponse = await gapi.client.drive.files.list({
+        q: `name='${file.name}' and '${targetFolderId}' in parents and trashed=false`,
+        fields: 'files(id)',
+        spaces: 'drive',
+      });
+
+      const existingFiles = existingResponse.result.files || [];
+
+      if (existingFiles.length === 0) {
+        // Move file to target folder
+        await gapi.client.drive.files.update({
+          fileId: file.id,
+          addParents: targetFolderId,
+          removeParents: sourceFolderId,
+          fields: 'id, parents',
+        });
+        console.log(`📦 Moved ${file.name} to primary folder`);
+      } else {
+        // File already exists in target, delete the duplicate
+        await gapi.client.drive.files.delete({ fileId: file.id });
+        console.log(`🗑️ Deleted duplicate file: ${file.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error merging folder contents:', error);
   }
 }
 
@@ -215,10 +285,50 @@ function cacheSpreadsheetId(userId, spreadsheetId) {
 }
 
 /**
+ * Clear cached spreadsheet ID
+ */
+function clearCachedSpreadsheetId(userId) {
+  localStorage.removeItem(`tunetnaplo_spreadsheet_${userId}`);
+}
+
+/**
+ * Verify a spreadsheet still exists and is accessible
+ */
+async function verifySpreadsheetExists(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+    await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'spreadsheetId',
+    });
+    return true;
+  } catch (error) {
+    // 404 means file doesn't exist or was deleted
+    if (error.status === 404 || error.result?.error?.code === 404) {
+      return false;
+    }
+    // Other errors (network, etc.) - assume it exists to avoid re-creating
+    console.warn('Error verifying spreadsheet:', error);
+    return true;
+  }
+}
+
+/**
  * Get or initialize spreadsheet
+ * Verifies cached spreadsheet still exists (handles folder merging scenarios)
  */
 export async function getSpreadsheetId(userId) {
   let spreadsheetId = getCachedSpreadsheetId(userId);
+
+  if (spreadsheetId) {
+    // Verify the cached spreadsheet still exists (might have been deleted during folder merge)
+    const exists = await verifySpreadsheetExists(spreadsheetId);
+    if (!exists) {
+      console.log('⚠️ Cached spreadsheet no longer exists, re-discovering...');
+      clearCachedSpreadsheetId(userId);
+      spreadsheetId = null;
+    }
+  }
 
   if (!spreadsheetId) {
     spreadsheetId = await findOrCreateSpreadsheet();
