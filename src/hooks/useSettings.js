@@ -5,6 +5,7 @@ const STORAGE_KEY = 'tunetnaplo_settings';
 const DEFAULT_SETTINGS = {
   theme: 'sky',
   userName: '',
+  parentPin: '', // Empty = no PIN required
 };
 
 const THEMES = [
@@ -50,11 +51,17 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, userName }));
   }, []);
 
+  const setParentPin = useCallback((parentPin) => {
+    setSettings((prev) => ({ ...prev, parentPin }));
+  }, []);
+
   return {
     theme: settings.theme,
     userName: settings.userName,
+    parentPin: settings.parentPin,
     setTheme,
     setUserName,
+    setParentPin,
     themes: THEMES,
   };
 }
