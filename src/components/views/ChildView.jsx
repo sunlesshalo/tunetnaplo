@@ -80,7 +80,7 @@ export default function ChildView({ session }) {
   const handleOpenSettings = () => setShowSettings(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
       <Header
         isChild={true}
         session={session}

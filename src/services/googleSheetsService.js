@@ -9,6 +9,74 @@ const getGapi = () => {
 const SPREADSHEET_NAME = 'Tünetnapló';
 const SYMPTOMS_SHEET_NAME = 'Symptoms';
 const ENTRIES_SHEET_NAME = 'Entries';
+const APP_FOLDER_NAME = 'Tünetnapló';
+
+/**
+ * Find or create the Tünetnapló folder
+ */
+async function findOrCreateAppFolder() {
+  try {
+    const gapi = getGapi();
+
+    // Search for existing folder in root
+    const response = await gapi.client.drive.files.list({
+      q: `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    const folders = response.result.files || [];
+
+    if (folders.length > 0) {
+      return folders[0].id;
+    }
+
+    // Create folder
+    const createResponse = await gapi.client.drive.files.create({
+      resource: {
+        name: APP_FOLDER_NAME,
+        mimeType: 'application/vnd.google-apps.folder',
+      },
+      fields: 'id',
+    });
+
+    console.log('✅ Created app folder:', createResponse.result.id);
+    return createResponse.result.id;
+  } catch (error) {
+    console.error('Error finding/creating app folder:', error);
+    throw error;
+  }
+}
+
+/**
+ * Move a file to a folder (removes from root)
+ */
+async function moveFileToFolder(fileId, folderId) {
+  try {
+    const gapi = getGapi();
+
+    // Get current parents
+    const file = await gapi.client.drive.files.get({
+      fileId: fileId,
+      fields: 'parents',
+    });
+
+    const previousParents = file.result.parents ? file.result.parents.join(',') : '';
+
+    // Move file to new folder
+    await gapi.client.drive.files.update({
+      fileId: fileId,
+      addParents: folderId,
+      removeParents: previousParents,
+      fields: 'id, parents',
+    });
+
+    console.log('✅ Moved spreadsheet to Tünetnapló folder');
+  } catch (error) {
+    console.error('Error moving file to folder:', error);
+    // Don't throw - spreadsheet still works even if not in folder
+  }
+}
 
 /**
  * Find or create the user's Tünetnapló spreadsheet
@@ -17,17 +85,35 @@ export async function findOrCreateSpreadsheet() {
   try {
     const gapi = getGapi();
 
-    // Search for existing spreadsheet
-    const response = await gapi.client.drive.files.list({
-      q: `name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+    // First, ensure the app folder exists
+    const folderId = await findOrCreateAppFolder();
+
+    // Search for existing spreadsheet IN the folder
+    const folderResponse = await gapi.client.drive.files.list({
+      q: `name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and '${folderId}' in parents and trashed=false`,
       fields: 'files(id, name)',
       spaces: 'drive',
     });
 
-    const files = response.result.files || [];
+    let files = folderResponse.result.files || [];
 
     if (files.length > 0) {
-      console.log('✅ Found existing spreadsheet:', files[0].id);
+      console.log('✅ Found existing spreadsheet in folder:', files[0].id);
+      return files[0].id;
+    }
+
+    // Also check root (for existing users who have spreadsheet in root)
+    const rootResponse = await gapi.client.drive.files.list({
+      q: `name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and 'root' in parents and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    files = rootResponse.result.files || [];
+
+    if (files.length > 0) {
+      console.log('📦 Found spreadsheet in root, moving to folder...');
+      await moveFileToFolder(files[0].id, folderId);
       return files[0].id;
     }
 
@@ -59,6 +145,9 @@ export async function findOrCreateSpreadsheet() {
 
     const spreadsheetId = createResponse.result.spreadsheetId;
     console.log('✅ Created new spreadsheet:', spreadsheetId);
+
+    // Move to app folder
+    await moveFileToFolder(spreadsheetId, folderId);
 
     // Initialize headers
     await initializeHeaders(spreadsheetId);

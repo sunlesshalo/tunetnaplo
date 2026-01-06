@@ -12,10 +12,14 @@ import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { countEntriesForSymptom } from "../../services/googleSheetsService";
 import { getSpreadsheetId } from "../../services/googleSheetsService";
 import { useEntryModal } from "../../hooks/useEntryModal";
+import { useSettings } from "../../hooks/useSettings";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
+
+  // Apply theme (must be called to set data-theme attribute)
+  useSettings();
 
   // Use Google Sheets hooks for data
   const userId = session?.user?.id;
@@ -140,7 +144,7 @@ export default function ParentView({ session }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
       <Header isChild={false} session={session} />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">

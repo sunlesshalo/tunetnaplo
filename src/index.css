@@ -67,6 +67,19 @@
   accent-color: rgb(var(--theme-color));
 }
 
+/* Theme-based gradients for page backgrounds */
+.bg-theme-gradient {
+  background: linear-gradient(to bottom, rgb(var(--theme-color) / 0.18), rgb(var(--theme-color) / 0.08));
+}
+.from-theme-50 {
+  --tw-gradient-from: rgb(var(--theme-color) / 0.18) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(var(--theme-color) / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.to-theme-50 {
+  --tw-gradient-to: rgb(var(--theme-color) / 0.10) var(--tw-gradient-to-position);
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
