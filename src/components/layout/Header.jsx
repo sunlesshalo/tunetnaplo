@@ -43,7 +43,7 @@ export default function Header({ isChild, session, userName, onOpenSettings }) {
             </button>
           )}
           {!isChild && (
-            <Link to="/" className="text-sm text-sky-600 hover:text-sky-700 font-medium">
+            <Link to="/" className="text-sm text-theme hover:text-theme-dark font-medium">
               Gyerek →
             </Link>
           )}

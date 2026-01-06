@@ -13,7 +13,7 @@ export default function EmptyStateCard({ isParentMode, onNavigateToSymptoms }) {
         <button
           type="button"
           onClick={onNavigateToSymptoms}
-          className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white hover:bg-sky-600"
+          className="inline-flex items-center gap-2 rounded-xl bg-theme px-3 py-2 text-sm font-medium text-white hover:bg-theme-dark"
         >
           ➕ Új tünet felvétele
         </button>

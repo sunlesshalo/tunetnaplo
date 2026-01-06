@@ -45,7 +45,7 @@ export default function EntryCard({
   return (
     <div
       className={`rounded-xl border bg-white ${
-        selectable && selected ? "border-sky-300 ring-2 ring-sky-200" : "border-slate-200"
+        selectable && selected ? "border-theme ring-2 ring-theme" : "border-slate-200"
       }`}
     >
       <div className="p-3">
@@ -63,7 +63,7 @@ export default function EntryCard({
                 checked={selected}
                 onChange={toggleSelect}
                 onClick={(e) => e.stopPropagation()}
-                className="mt-1.5 h-4 w-4 accent-sky-500"
+                className="mt-1.5 h-4 w-4 accent-theme"
               />
             )}
             <button
@@ -86,7 +86,7 @@ export default function EntryCard({
             </button>
           </div>
           {!selectable && !compactButtons && (
-            <span className="text-sm px-2 py-1 rounded-lg bg-sky-100 font-semibold ml-2">
+            <span className="text-sm px-2 py-1 rounded-lg bg-theme-light font-semibold ml-2">
               {entry.intensity}
             </span>
           )}
@@ -96,7 +96,7 @@ export default function EntryCard({
                 <button
                   type="button"
                   onClick={() => onEdit(entry)}
-                  className="text-sky-600 hover:text-sky-700 px-2 py-1 rounded-lg hover:bg-sky-50 text-sm"
+                  className="text-theme hover:text-theme-dark px-2 py-1 rounded-lg hover:bg-theme-light text-sm"
                 >
                   Szerkeszt
                 </button>
@@ -116,7 +116,7 @@ export default function EntryCard({
         {compactButtons && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-600">Erősség:</span>
-            <span className="text-sm px-2 py-0.5 rounded-lg bg-sky-100 font-semibold">
+            <span className="text-sm px-2 py-0.5 rounded-lg bg-theme-light font-semibold">
               {entry.intensity}/10
             </span>
           </div>
@@ -244,7 +244,7 @@ export default function EntryCard({
               {onEdit && (
                 <button
                   onClick={() => onEdit(entry)}
-                  className="flex-1 px-3 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition"
+                  className="flex-1 px-3 py-2 bg-theme text-white rounded-lg text-sm font-medium hover:bg-theme-dark transition"
                 >
                   ✏️ Szerkesztés
                 </button>

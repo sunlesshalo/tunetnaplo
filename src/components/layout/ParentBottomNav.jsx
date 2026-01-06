@@ -17,7 +17,7 @@ export default function ParentBottomNav({ tab, setTab }) {
             key={i}
             onClick={() => setTab(i)}
             className={`flex flex-col items-center py-3 text-xs ${
-              tab === i ? "font-semibold text-sky-600" : "text-slate-500"
+              tab === i ? "font-semibold text-theme" : "text-slate-500"
             }`}
           >
             <span className="text-lg leading-none">{it.icon}</span>

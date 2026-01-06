@@ -46,7 +46,7 @@ export default function PhotoUpload({ userId, photos, onChange }) {
       <label className="block">
         <span className="text-sm font-medium text-slate-700">Fotók 📸</span>
         <div className="mt-2">
-          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sky-100 text-sky-700 rounded-lg hover:bg-sky-200 transition">
+          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-theme-light text-theme rounded-lg hover:bg-theme-light transition">
             <span>{uploading ? 'Feltöltés...' : '+ Fotó hozzáadása'}</span>
             <input
               type="file"

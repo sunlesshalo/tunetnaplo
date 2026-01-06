@@ -72,7 +72,7 @@ export default function LogModal({
         <label className="block mb-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium">Erősség</span>
-            <span className="text-sm bg-sky-100 px-2 py-0.5 rounded-lg">{intensity}</span>
+            <span className="text-sm bg-theme-light px-2 py-0.5 rounded-lg">{intensity}</span>
           </div>
           <input
             type="range"
@@ -80,7 +80,7 @@ export default function LogModal({
             max={10}
             value={intensity}
             onChange={(e) => setIntensity(e.target.value)}
-            className="w-full accent-sky-500"
+            className="w-full accent-theme"
           />
           <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>0</span><span>5</span><span>10</span>
@@ -97,8 +97,8 @@ export default function LogModal({
                 onClick={() => setDuration(preset.value.toString())}
                 className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
                   duration === preset.value.toString()
-                    ? "bg-sky-500 text-white border-sky-500"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                    ? "bg-theme text-white border-theme"
+                    : "bg-white text-slate-700 border-slate-300 hover:border-theme"
                 }`}
               >
                 {preset.label}
@@ -110,7 +110,7 @@ export default function LogModal({
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="Vagy írj percet..."
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-theme text-sm"
           />
         </div>
 
@@ -120,7 +120,7 @@ export default function LogModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Rövid megjegyzés..."
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-300 min-h-[80px]"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme min-h-[80px]"
           />
         </label>
 
@@ -170,8 +170,8 @@ export default function LogModal({
                       onClick={() => setMood(mood === option.value ? "" : option.value)}
                       className={`p-2 rounded-lg border transition text-sm font-medium ${
                         mood === option.value
-                          ? "bg-sky-500 text-white border-sky-500"
-                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                          ? "bg-theme text-white border-theme"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-theme"
                       }`}
                     >
                       <span className="mr-1">{option.emoji}</span>
@@ -192,8 +192,8 @@ export default function LogModal({
                       onClick={() => setEnergy(energy === option.value ? "" : option.value)}
                       className={`p-2 rounded-lg border transition text-sm font-medium ${
                         energy === option.value
-                          ? "bg-sky-500 text-white border-sky-500"
-                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                          ? "bg-theme text-white border-theme"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-theme"
                       }`}
                     >
                       <span className="mr-1">{option.emoji}</span>
@@ -214,8 +214,8 @@ export default function LogModal({
                       onClick={() => setActivity(activity === option.value ? "" : option.value)}
                       className={`p-2 rounded-lg border transition text-sm font-medium ${
                         activity === option.value
-                          ? "bg-sky-500 text-white border-sky-500"
-                          : "bg-white text-slate-700 border-slate-300 hover:border-sky-300"
+                          ? "bg-theme text-white border-theme"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-theme"
                       }`}
                     >
                       <span className="mr-1">{option.emoji}</span>
@@ -235,7 +235,7 @@ export default function LogModal({
                       value={foodNote}
                       onChange={(e) => setFoodNote(e.target.value)}
                       placeholder="pl. alma, brokkoli"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-sm"
                     />
                   </div>
 
@@ -246,7 +246,7 @@ export default function LogModal({
                       value={medicationNote}
                       onChange={(e) => setMedicationNote(e.target.value)}
                       placeholder="pl. antihistamin, fájdalomcsillapító"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-sm"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-sm"
                     />
                   </div>
                 </>
@@ -270,8 +270,8 @@ export default function LogModal({
             aria-busy={isSaving}
             className={`flex-1 rounded-2xl font-semibold py-3 text-white transition ${
               isSaving
-                ? "bg-sky-300 cursor-not-allowed opacity-70"
-                : "bg-sky-500 hover:bg-sky-600 active:bg-sky-700"
+                ? "bg-theme cursor-not-allowed opacity-70"
+                : "bg-theme hover:bg-theme-dark active:bg-theme-dark"
             }`}
           >
             {isSaving

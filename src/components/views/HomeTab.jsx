@@ -42,7 +42,7 @@ export default function HomeTab({
               <button
                 key={s.id}
                 onClick={() => onLog(s)}
-                className={`rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition ${
+                className={`rounded-2xl border border-slate-200 bg-white shadow-sm p-4 flex items-center gap-3 active:scale-[0.98] transition hover:border-theme hover:bg-theme-light ${
                   isLongName ? 'col-span-2' : ''
                 }`}
               >

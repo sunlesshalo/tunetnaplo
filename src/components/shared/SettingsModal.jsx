@@ -80,7 +80,7 @@ export default function SettingsModal({
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
             placeholder="Ird be a neved..."
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-300 text-lg"
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme text-lg"
           />
         </div>
 
@@ -124,7 +124,7 @@ export default function SettingsModal({
                   setPinError("");
                 }}
                 placeholder="PIN kod..."
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-300 text-lg text-center tracking-widest"
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme text-lg text-center tracking-widest"
                 maxLength={6}
               />
             </div>
@@ -161,7 +161,7 @@ export default function SettingsModal({
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
                 placeholder="Uj PIN kod (min. 4 szamjegy)"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-center tracking-widest"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
                 maxLength={6}
               />
               <input
@@ -171,14 +171,14 @@ export default function SettingsModal({
                 value={confirmPin}
                 onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
                 placeholder="PIN kod megerositese"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-300 text-center tracking-widest"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
                 maxLength={6}
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleSetPin}
-                  className="flex-1 rounded-lg bg-sky-500 text-white py-2 text-sm font-medium hover:bg-sky-600"
+                  className="flex-1 rounded-lg bg-theme text-white py-2 text-sm font-medium hover:bg-theme-dark"
                 >
                   Mentes
                 </button>
@@ -208,7 +208,7 @@ export default function SettingsModal({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-2xl bg-sky-500 text-white py-3 font-semibold hover:bg-sky-600 active:bg-sky-700"
+            className="flex-1 rounded-2xl bg-theme text-white py-3 font-semibold hover:bg-theme-dark active:bg-theme-dark"
           >
             Mentes
           </button>

@@ -35,13 +35,13 @@ export default function PatternsTab({ entries, symptoms }) {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-white rounded-lg p-3">
               <div className="text-slate-500 text-xs">Korábbi időszak</div>
-              <div className="text-2xl font-bold text-sky-600">
+              <div className="text-2xl font-bold text-theme">
                 {analysis.severityTrends.firstPeriodAvg}
               </div>
             </div>
             <div className="bg-white rounded-lg p-3">
               <div className="text-slate-500 text-xs">Későbbi időszak</div>
-              <div className="text-2xl font-bold text-sky-600">
+              <div className="text-2xl font-bold text-theme">
                 {analysis.severityTrends.secondPeriodAvg}
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function PatternsTab({ entries, symptoms }) {
                     </div>
                   </div>
                 </div>
-                <div className="text-sm font-semibold text-sky-600">
+                <div className="text-sm font-semibold text-theme">
                   {stat.percentage}%
                 </div>
               </div>
@@ -91,7 +91,7 @@ export default function PatternsTab({ entries, symptoms }) {
             {analysis.timePatterns.stats.map((stat, index) => (
               <div key={index} className="bg-white rounded-lg p-3">
                 <div className="text-xs text-slate-500 capitalize">{stat.period}</div>
-                <div className="text-lg font-bold text-sky-600">
+                <div className="text-lg font-bold text-theme">
                   {stat.avgIntensity}
                 </div>
                 <div className="text-xs text-slate-500">{stat.count} bejegyzés</div>
@@ -116,7 +116,7 @@ export default function PatternsTab({ entries, symptoms }) {
               >
                 <div className="capitalize">{stat.condition}</div>
                 <div className="text-right">
-                  <div className="font-semibold text-sky-600">
+                  <div className="font-semibold text-theme">
                     {stat.avgIntensity}
                   </div>
                   <div className="text-xs text-slate-500">{stat.count}×</div>
@@ -145,7 +145,7 @@ export default function PatternsTab({ entries, symptoms }) {
                   <div className="text-xs text-slate-500 capitalize">{corr.type}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold text-sky-600">
+                  <div className="font-semibold text-theme">
                     {corr.topCorrelation.avgIntensity}
                   </div>
                   <div className="text-xs text-slate-500">

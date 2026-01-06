@@ -58,7 +58,7 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete, onUpdate }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="pl. Hasfájás"
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-sky-300"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme"
           />
         </label>
 
@@ -95,7 +95,7 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete, onUpdate }) {
             type="checkbox"
             checked={parentOnly}
             onChange={(e) => setParentOnly(e.target.checked)}
-            className="w-5 h-5 accent-sky-500"
+            className="w-5 h-5 accent-theme"
           />
           <div>
             <span className="text-sm font-medium">Csak szülő módban látható</span>
@@ -106,7 +106,7 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete, onUpdate }) {
         <div className="flex gap-2">
           <button
             type="submit"
-            className="flex-1 rounded-2xl bg-sky-500 text-white font-semibold py-3 active:scale-[0.99]"
+            className="flex-1 rounded-2xl bg-theme hover:bg-theme-dark text-white font-semibold py-3 active:scale-[0.99]"
           >
             {editingId ? "Mentés" : "Hozzáadás"}
           </button>
@@ -145,7 +145,7 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete, onUpdate }) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => startEdit(s)}
-                    className="text-sky-600 hover:text-sky-700 px-3 py-1 rounded-lg hover:bg-sky-50 text-sm font-medium"
+                    className="text-theme hover:text-theme-dark px-3 py-1 rounded-lg hover:bg-theme-light text-sm font-medium"
                   >
                     Szerkesztés
                   </button>

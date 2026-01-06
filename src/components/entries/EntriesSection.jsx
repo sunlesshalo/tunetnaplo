@@ -165,7 +165,7 @@ export default function EntriesSection({
               <button
                 type="button"
                 onClick={toggleSelectionMode}
-                className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+                className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-theme hover:text-theme"
               >
                 {selectionMode ? "Kijelölés vége" : "Tömeges kijelölés"}
               </button>
@@ -177,14 +177,14 @@ export default function EntriesSection({
                   <button
                     type="button"
                     onClick={selectAll}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-sky-300 hover:text-sky-600"
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-theme hover:text-theme"
                   >
                     Mind kijelöl
                   </button>
                   <button
                     type="button"
                     onClick={clearSelection}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-sky-300 hover:text-sky-600"
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 text-sm text-slate-600 hover:border-theme hover:text-theme"
                     disabled={bulkDeleteDisabled}
                   >
                     Kijelölés törlése
@@ -217,8 +217,8 @@ export default function EntriesSection({
               onClick={() => setFilterId(filter.id)}
               className={`px-3 py-1.5 rounded-xl text-sm border transition whitespace-nowrap ${
                 filterId === filter.id
-                  ? "bg-sky-500 text-white border-sky-500"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-sky-300"
+                  ? "bg-theme text-white border-theme"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-theme"
               }`}
             >
               {filter.label}
@@ -255,7 +255,7 @@ export default function EntriesSection({
           <button
             type="button"
             onClick={() => setVisibleCount((prev) => prev + LOAD_STEP)}
-            className="px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-600"
+            className="px-4 py-2 rounded-2xl border border-slate-300 text-sm font-medium text-slate-700 hover:border-theme hover:text-theme"
           >
             További bejegyzések betöltése
           </button>
@@ -270,7 +270,7 @@ export default function EntriesSection({
             className={`inline-flex items-center justify-center px-4 py-2 rounded-2xl border text-sm font-medium ${
               selectionMode
                 ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                : "border-slate-300 text-slate-700 hover:border-sky-300 hover:text-sky-600"
+                : "border-slate-300 text-slate-700 hover:border-theme hover:text-theme"
             }`}
             disabled={selectionMode}
           >

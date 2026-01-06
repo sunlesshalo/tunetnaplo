@@ -26,11 +26,11 @@ export default function FeedbackBanner({ variant = "parent" }) {
 
   return (
     <div className={`mt-6 ${isParent ? "" : "mt-8"}`}>
-      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+      <div className="rounded-2xl border border-slate-200 bg-theme-light p-4 text-sm text-slate-700">
         <p className="mb-3 font-medium">{message}</p>
         <a
           {...linkProps}
-          className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+          className="inline-flex items-center gap-2 rounded-xl bg-theme px-3 py-2 text-sm font-semibold text-white hover:bg-theme-dark"
         >
           {actionLabel}
         </a>
