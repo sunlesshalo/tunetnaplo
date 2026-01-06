@@ -9,6 +9,7 @@ const getGapi = () => {
 const SPREADSHEET_NAME = 'Tünetnapló';
 const SYMPTOMS_SHEET_NAME = 'Symptoms';
 const ENTRIES_SHEET_NAME = 'Entries';
+const SETTINGS_SHEET_NAME = 'Settings';
 const APP_FOLDER_NAME = 'Tünetnapló';
 
 /**
@@ -210,6 +211,14 @@ export async function findOrCreateSpreadsheet() {
             },
           },
         },
+        {
+          properties: {
+            title: SETTINGS_SHEET_NAME,
+            gridProperties: {
+              frozenRowCount: 1,
+            },
+          },
+        },
       ],
     });
 
@@ -251,6 +260,7 @@ async function initializeHeaders(spreadsheetId) {
       'updated_at',
     ],
   ];
+  const settingsHeaders = [['key', 'value', 'updated_at']];
 
   await gapi.client.sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
@@ -264,6 +274,10 @@ async function initializeHeaders(spreadsheetId) {
         {
           range: `${ENTRIES_SHEET_NAME}!A1:M1`,
           values: entriesHeaders,
+        },
+        {
+          range: `${SETTINGS_SHEET_NAME}!A1:C1`,
+          values: settingsHeaders,
         },
       ],
     },
@@ -717,6 +731,144 @@ export async function deleteEntry(spreadsheetId, entryId) {
     });
   } catch (error) {
     console.error('Error deleting entry:', error);
+    throw error;
+  }
+}
+
+/**
+ * Ensure the Settings sheet exists (for existing spreadsheets created before this feature)
+ */
+async function ensureSettingsSheet(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+
+    // Check if Settings sheet exists
+    const spreadsheet = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+
+    const sheets = spreadsheet.result.sheets || [];
+    const settingsSheetExists = sheets.some((s) => s.properties.title === SETTINGS_SHEET_NAME);
+
+    if (!settingsSheetExists) {
+      // Create the Settings sheet
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: SETTINGS_SHEET_NAME,
+                  gridProperties: {
+                    frozenRowCount: 1,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      });
+
+      // Initialize headers
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SETTINGS_SHEET_NAME}!A1:C1`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: [['key', 'value', 'updated_at']],
+        },
+      });
+
+      console.log('✅ Created Settings sheet');
+    }
+  } catch (error) {
+    console.error('Error ensuring Settings sheet:', error);
+  }
+}
+
+/**
+ * Fetch shared settings from Google Sheets
+ * @returns {Promise<{userName: string, theme: string}>}
+ */
+export async function fetchSharedSettings(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+
+    // Ensure Settings sheet exists
+    await ensureSettingsSheet(spreadsheetId);
+
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SETTINGS_SHEET_NAME}!A2:B`,
+    });
+
+    const rows = response.result.values || [];
+    const settings = {};
+
+    for (const row of rows) {
+      if (row[0] && row[1] !== undefined) {
+        settings[row[0]] = row[1];
+      }
+    }
+
+    return {
+      userName: settings.userName || '',
+      theme: settings.theme || 'sky',
+    };
+  } catch (error) {
+    console.error('Error fetching shared settings:', error);
+    return { userName: '', theme: 'sky' };
+  }
+}
+
+/**
+ * Save a shared setting to Google Sheets
+ */
+export async function saveSharedSetting(spreadsheetId, key, value) {
+  try {
+    const gapi = getGapi();
+
+    // Ensure Settings sheet exists
+    await ensureSettingsSheet(spreadsheetId);
+
+    // First, check if the key already exists
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SETTINGS_SHEET_NAME}!A2:C`,
+    });
+
+    const rows = response.result.values || [];
+    const existingIndex = rows.findIndex((row) => row[0] === key);
+    const now = new Date().toISOString();
+
+    if (existingIndex >= 0) {
+      // Update existing row
+      const rowNumber = existingIndex + 2;
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SETTINGS_SHEET_NAME}!A${rowNumber}:C${rowNumber}`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: [[key, value, now]],
+        },
+      });
+    } else {
+      // Append new row
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${SETTINGS_SHEET_NAME}!A:C`,
+        valueInputOption: 'RAW',
+        resource: {
+          values: [[key, value, now]],
+        },
+      });
+    }
+
+    console.log(`✅ Saved setting: ${key} = ${value}`);
+  } catch (error) {
+    console.error('Error saving shared setting:', error);
     throw error;
   }
 }

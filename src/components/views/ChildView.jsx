@@ -13,8 +13,8 @@ import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 export default function ChildView({ session }) {
   const userId = session?.user?.id;
 
-  // Settings (theme, name, PIN, biometric)
-  const { theme, userName, parentPin, biometricEnabled, setTheme, setUserName, setParentPin, setBiometricEnabled, themes } = useSettings();
+  // Settings (theme, name, PIN, biometric) - pass userId to sync shared settings via Google Sheets
+  const { theme, userName, parentPin, biometricEnabled, setTheme, setUserName, setParentPin, setBiometricEnabled, themes, isLoading: settingsLoading } = useSettings(userId);
 
   // Modal states
   const [showSuccess, setShowSuccess] = useState(false);

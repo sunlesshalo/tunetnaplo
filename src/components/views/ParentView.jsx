@@ -18,11 +18,11 @@ import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
 
-  // Apply theme (must be called to set data-theme attribute)
-  useSettings();
-
   // Use Google Sheets hooks for data
   const userId = session?.user?.id;
+
+  // Apply theme and sync shared settings via Google Sheets
+  useSettings(userId);
   const {
     symptoms,
     loading: symptomsLoading,
