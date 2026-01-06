@@ -1,0 +1,38 @@
+{
+  "project": "Tunetnaplo",
+  "updated": "2026-01-06",
+  "current_focus": "Beta testing preparation",
+  "tasks": [
+    {
+      "id": 1,
+      "task": "Test theme colors on deployed version",
+      "status": "pending",
+      "notes": "Theme picker should now change UI colors across all components",
+      "blocked_by": "",
+      "created": "2026-01-06",
+      "completed": ""
+    },
+    {
+      "id": 2,
+      "task": "Add offline support (PWA)",
+      "status": "pending",
+      "notes": "Service worker for offline symptom logging",
+      "blocked_by": "",
+      "created": "2026-01-06",
+      "completed": ""
+    },
+    {
+      "id": 3,
+      "task": "Consider gamification for child engagement",
+      "status": "pending",
+      "notes": "Streaks, achievements, positive reinforcement",
+      "blocked_by": "",
+      "created": "2026-01-06",
+      "completed": ""
+    }
+  ],
+  "_schema": {
+    "status_values": ["pending", "in_progress", "blocked", "completed"],
+    "notes": "Use blocked_by field when status is blocked"
+  }
+}
