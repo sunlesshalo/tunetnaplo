@@ -36,7 +36,7 @@ export default function SuccessModal({ isOpen, onClose, autoDismissMs = 1500 }) 
         </div>
 
         <p className="text-lg font-medium text-slate-700">
-          Feljegyeztuk.
+          Feljegyeztük!
         </p>
       </div>
     </div>

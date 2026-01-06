@@ -233,7 +233,7 @@ export default function EntryCard({
           {/* Voice note section */}
           {entry.voice_note && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvetel</h4>
+              <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvétel</h4>
               <AuthenticatedAudio fileId={entry.voice_note} className="w-full h-10" />
             </div>
           )}

@@ -68,9 +68,9 @@ function analyzeWeatherPatterns(entries) {
 function analyzeTimePatterns(entries) {
   const timeGroups = {
     reggel: [], // 6-12
-    delutan: [], // 12-18
+    délután: [], // 12-18
     este: [], // 18-22
-    ejszaka: [] // 22-6
+    éjszaka: [] // 22-6
   };
 
   entries.forEach(entry => {
@@ -79,9 +79,9 @@ function analyzeTimePatterns(entries) {
     const hour = entry.environment.timeOfDay;
     let period;
     if (hour >= 6 && hour < 12) period = 'reggel';
-    else if (hour >= 12 && hour < 18) period = 'delutan';
+    else if (hour >= 12 && hour < 18) period = 'délután';
     else if (hour >= 18 && hour < 22) period = 'este';
-    else period = 'ejszaka';
+    else period = 'éjszaka';
 
     timeGroups[period].push(entry.intensity);
   });

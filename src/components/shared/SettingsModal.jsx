@@ -34,7 +34,7 @@ export default function SettingsModal({
         onClose();
         navigate("/szulo");
       } else {
-        setPinError("Hibas PIN kod");
+        setPinError("Hibás PIN kód");
         setPinInput("");
       }
     } else {
@@ -46,11 +46,11 @@ export default function SettingsModal({
 
   const handleSetPin = () => {
     if (newPin.length < 4) {
-      setPinError("A PIN kodnak legalabb 4 szamjegyunek kell lennie");
+      setPinError("A PIN kódnak legalább 4 számjegyűnek kell lennie");
       return;
     }
     if (newPin !== confirmPin) {
-      setPinError("A ket PIN kod nem egyezik");
+      setPinError("A két PIN kód nem egyezik");
       return;
     }
     setParentPin(newPin);
@@ -68,7 +68,7 @@ export default function SettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
       <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-6">Beallitasok</h2>
+        <h2 className="text-xl font-bold mb-6">Beállítások</h2>
 
         {/* Name input */}
         <div className="mb-6">
@@ -79,7 +79,7 @@ export default function SettingsModal({
             type="text"
             value={tempName}
             onChange={(e) => setTempName(e.target.value)}
-            placeholder="Ird be a neved..."
+            placeholder="Írd be a neved..."
             className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme text-lg"
           />
         </div>
@@ -87,7 +87,7 @@ export default function SettingsModal({
         {/* Theme picker */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-slate-700 mb-3">
-            Szin
+            Szín
           </label>
           <div className="flex gap-3 justify-center">
             {themes.map((t) => (
@@ -109,7 +109,7 @@ export default function SettingsModal({
         {/* Parent mode section */}
         <div className="mb-6 pt-4 border-t border-slate-200">
           <label className="block text-sm font-medium text-slate-700 mb-3">
-            Szulo mod
+            Szülő mód
           </label>
 
           {parentPin && (
@@ -123,7 +123,7 @@ export default function SettingsModal({
                   setPinInput(e.target.value.replace(/\D/g, ""));
                   setPinError("");
                 }}
-                placeholder="PIN kod..."
+                placeholder="PIN kód..."
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-theme text-lg text-center tracking-widest"
                 maxLength={6}
               />
@@ -139,7 +139,7 @@ export default function SettingsModal({
             onClick={handleParentMode}
             className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
           >
-            Szulo mod megnyitasa
+            Szülő mód megnyitása
           </button>
 
           {/* PIN setup toggle */}
@@ -148,7 +148,7 @@ export default function SettingsModal({
             onClick={() => setShowPinSetup(!showPinSetup)}
             className="w-full mt-2 text-sm text-slate-500 hover:text-slate-700"
           >
-            {parentPin ? "PIN kod modositasa" : "PIN kod beallitasa (opcionalis)"}
+            {parentPin ? "PIN kód módosítása" : "PIN kód beállítása (opcionális)"}
           </button>
 
           {/* PIN setup form */}
@@ -160,7 +160,7 @@ export default function SettingsModal({
                 pattern="[0-9]*"
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="Uj PIN kod (min. 4 szamjegy)"
+                placeholder="Új PIN kód (min. 4 számjegy)"
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
                 maxLength={6}
               />
@@ -170,7 +170,7 @@ export default function SettingsModal({
                 pattern="[0-9]*"
                 value={confirmPin}
                 onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="PIN kod megerositese"
+                placeholder="PIN kód megerősítése"
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
                 maxLength={6}
               />
@@ -180,7 +180,7 @@ export default function SettingsModal({
                   onClick={handleSetPin}
                   className="flex-1 rounded-lg bg-theme text-white py-2 text-sm font-medium hover:bg-theme-dark"
                 >
-                  Mentes
+                  Mentés
                 </button>
                 {parentPin && (
                   <button
@@ -188,7 +188,7 @@ export default function SettingsModal({
                     onClick={handleRemovePin}
                     className="rounded-lg bg-red-100 text-red-600 py-2 px-3 text-sm font-medium hover:bg-red-200"
                   >
-                    Torles
+                    Törlés
                   </button>
                 )}
               </div>
@@ -203,14 +203,14 @@ export default function SettingsModal({
             onClick={onClose}
             className="flex-1 rounded-2xl border border-slate-300 py-3 font-medium"
           >
-            Megse
+            Mégse
           </button>
           <button
             type="button"
             onClick={handleSave}
             className="flex-1 rounded-2xl bg-theme text-white py-3 font-semibold hover:bg-theme-dark active:bg-theme-dark"
           >
-            Mentes
+            Mentés
           </button>
         </div>
       </div>
