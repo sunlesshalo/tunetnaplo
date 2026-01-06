@@ -13,8 +13,8 @@ import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 export default function ChildView({ session }) {
   const userId = session?.user?.id;
 
-  // Settings (theme, name, PIN)
-  const { theme, userName, parentPin, setTheme, setUserName, setParentPin, themes } = useSettings();
+  // Settings (theme, name, PIN, biometric)
+  const { theme, userName, parentPin, biometricEnabled, setTheme, setUserName, setParentPin, setBiometricEnabled, themes } = useSettings();
 
   // Modal states
   const [showSuccess, setShowSuccess] = useState(false);
@@ -135,6 +135,8 @@ export default function ChildView({ session }) {
         themes={themes}
         parentPin={parentPin}
         setParentPin={setParentPin}
+        biometricEnabled={biometricEnabled}
+        setBiometricEnabled={setBiometricEnabled}
       />
     </div>
   );

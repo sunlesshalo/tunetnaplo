@@ -1,5 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  isBiometricAvailable,
+  getBiometricName,
+  registerBiometric,
+  authenticateWithBiometric,
+  removeBiometricCredential,
+  hasBiometricCredential,
+} from "../../utils/biometricAuth";
 
 export default function SettingsModal({
   isOpen,
@@ -11,6 +19,8 @@ export default function SettingsModal({
   themes,
   parentPin,
   setParentPin,
+  biometricEnabled,
+  setBiometricEnabled,
 }) {
   const navigate = useNavigate();
   const [tempName, setTempName] = useState(userName);
@@ -19,6 +29,24 @@ export default function SettingsModal({
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricName, setBiometricName] = useState("");
+  const [showBiometricFallback, setShowBiometricFallback] = useState(false);
+
+  // Check biometric availability on mount
+  useEffect(() => {
+    async function checkBiometric() {
+      const available = await isBiometricAvailable();
+      setBiometricAvailable(available);
+      if (available) {
+        setBiometricName(getBiometricName());
+      }
+    }
+    if (isOpen) {
+      checkBiometric();
+      setShowBiometricFallback(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -41,6 +69,38 @@ export default function SettingsModal({
       // No PIN set, go directly
       onClose();
       navigate("/szulo");
+    }
+  };
+
+  const handleBiometricAuth = async () => {
+    const result = await authenticateWithBiometric();
+    if (result.success) {
+      onClose();
+      navigate("/szulo");
+    } else {
+      // Show fallback to PIN if available
+      if (parentPin) {
+        setShowBiometricFallback(true);
+        setPinError(result.error || "Biometrikus azonosítás sikertelen");
+      } else {
+        setPinError(result.error || "Biometrikus azonosítás sikertelen");
+      }
+    }
+  };
+
+  const handleToggleBiometric = async () => {
+    if (biometricEnabled) {
+      // Disable biometric
+      removeBiometricCredential();
+      setBiometricEnabled(false);
+    } else {
+      // Enable biometric - register credential
+      const result = await registerBiometric();
+      if (result.success) {
+        setBiometricEnabled(true);
+      } else {
+        setPinError(result.error || "Nem sikerült beállítani a biometrikus azonosítást");
+      }
     }
   };
 
@@ -112,7 +172,20 @@ export default function SettingsModal({
             Szülő mód
           </label>
 
-          {parentPin && (
+          {/* Biometric auth button - show if enabled and not in fallback mode */}
+          {biometricEnabled && !showBiometricFallback && (
+            <button
+              type="button"
+              onClick={handleBiometricAuth}
+              className="w-full rounded-xl bg-theme hover:bg-theme-dark text-white py-3 font-medium transition-colors mb-3 flex items-center justify-center gap-2"
+            >
+              <span className="text-xl">🔓</span>
+              Megnyitás {biometricName}-vel
+            </button>
+          )}
+
+          {/* PIN input - show if PIN set AND (no biometric OR in fallback mode) */}
+          {parentPin && (!biometricEnabled || showBiometricFallback) && (
             <div className="mb-3">
               <input
                 type="password"
@@ -134,66 +207,105 @@ export default function SettingsModal({
             <p className="text-red-500 text-sm mb-3 text-center">{pinError}</p>
           )}
 
-          <button
-            type="button"
-            onClick={handleParentMode}
-            className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
-          >
-            Szülő mód megnyitása
-          </button>
+          {/* Open parent mode button - show if no biometric OR in fallback mode */}
+          {(!biometricEnabled || showBiometricFallback) && (
+            <button
+              type="button"
+              onClick={handleParentMode}
+              className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
+            >
+              {parentPin ? "Szülő mód megnyitása" : "Szülő mód megnyitása (nincs védelem)"}
+            </button>
+          )}
 
-          {/* PIN setup toggle */}
-          <button
-            type="button"
-            onClick={() => setShowPinSetup(!showPinSetup)}
-            className="w-full mt-2 text-sm text-slate-500 hover:text-slate-700"
-          >
-            {parentPin ? "PIN kód módosítása" : "PIN kód beállítása (opcionális)"}
-          </button>
+          {/* Security settings section */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-xs font-medium text-slate-500 mb-3">Biztonság</p>
 
-          {/* PIN setup form */}
-          {showPinSetup && (
-            <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-3">
-              <input
-                type="password"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="Új PIN kód (min. 4 számjegy)"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
-                maxLength={6}
-              />
-              <input
-                type="password"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="PIN kód megerősítése"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
-                maxLength={6}
-              />
-              <div className="flex gap-2">
+            {/* Biometric toggle - only show if device supports it */}
+            {biometricAvailable && (
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🔐</span>
+                  <span className="text-sm font-medium">{biometricName}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={handleSetPin}
-                  className="flex-1 rounded-lg bg-theme text-white py-2 text-sm font-medium hover:bg-theme-dark"
+                  onClick={handleToggleBiometric}
+                  className={`relative w-12 h-7 rounded-full transition-colors ${
+                    biometricEnabled ? "bg-theme" : "bg-slate-300"
+                  }`}
                 >
-                  Mentés
+                  <span
+                    className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      biometricEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
                 </button>
-                {parentPin && (
+              </div>
+            )}
+
+            {/* PIN status and setup */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🔢</span>
+                <span className="text-sm font-medium">
+                  PIN kód {parentPin ? "✓" : "(nincs)"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPinSetup(!showPinSetup)}
+                className="text-sm text-theme hover:text-theme-dark font-medium"
+              >
+                {parentPin ? "Módosítás" : "Beállítás"}
+              </button>
+            </div>
+
+            {/* PIN setup form */}
+            {showPinSetup && (
+              <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-3">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Új PIN kód (min. 4 számjegy)"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
+                  maxLength={6}
+                />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="PIN kód megerősítése"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-center tracking-widest"
+                  maxLength={6}
+                />
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={handleRemovePin}
-                    className="rounded-lg bg-red-100 text-red-600 py-2 px-3 text-sm font-medium hover:bg-red-200"
+                    onClick={handleSetPin}
+                    className="flex-1 rounded-lg bg-theme text-white py-2 text-sm font-medium hover:bg-theme-dark"
                   >
-                    Törlés
+                    Mentés
                   </button>
-                )}
+                  {parentPin && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePin}
+                      className="rounded-lg bg-red-100 text-red-600 py-2 px-3 text-sm font-medium hover:bg-red-200"
+                    >
+                      Törlés
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Buttons */}

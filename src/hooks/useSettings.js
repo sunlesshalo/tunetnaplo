@@ -6,14 +6,15 @@ const DEFAULT_SETTINGS = {
   theme: 'sky',
   userName: '',
   parentPin: '', // Empty = no PIN required
+  biometricEnabled: false, // Biometric auth for parent mode
 };
 
 const THEMES = [
-  { id: 'sky', label: 'Kek', color: '#38bdf8' },
-  { id: 'emerald', label: 'Zold', color: '#34d399' },
+  { id: 'sky', label: 'Kék', color: '#38bdf8' },
+  { id: 'emerald', label: 'Zöld', color: '#34d399' },
   { id: 'violet', label: 'Lila', color: '#a78bfa' },
-  { id: 'rose', label: 'Rozsaszin', color: '#fb7185' },
-  { id: 'amber', label: 'Sarga', color: '#fbbf24' },
+  { id: 'rose', label: 'Rózsaszín', color: '#fb7185' },
+  { id: 'amber', label: 'Sárga', color: '#fbbf24' },
 ];
 
 export function useSettings() {
@@ -55,13 +56,19 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, parentPin }));
   }, []);
 
+  const setBiometricEnabled = useCallback((biometricEnabled) => {
+    setSettings((prev) => ({ ...prev, biometricEnabled }));
+  }, []);
+
   return {
     theme: settings.theme,
     userName: settings.userName,
     parentPin: settings.parentPin,
+    biometricEnabled: settings.biometricEnabled,
     setTheme,
     setUserName,
     setParentPin,
+    setBiometricEnabled,
     themes: THEMES,
   };
 }
@@ -69,7 +76,7 @@ export function useSettings() {
 // Helper to get time-based greeting
 export function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Jo reggelt';
-  if (hour < 18) return 'Jo napot';
-  return 'Jo estet';
+  if (hour < 12) return 'Jó reggelt';
+  if (hour < 18) return 'Jó napot';
+  return 'Jó estét';
 }
