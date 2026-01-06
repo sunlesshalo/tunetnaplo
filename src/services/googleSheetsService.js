@@ -610,3 +610,62 @@ export async function deleteEntry(spreadsheetId, entryId) {
     throw error;
   }
 }
+
+/**
+ * Delete the entire Tünetnapló folder from Google Drive (including spreadsheet, photos, voice notes)
+ * Also clears all localStorage data
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function deleteAllData() {
+  try {
+    const gapi = getGapi();
+
+    // Find the Tünetnapló folder
+    const response = await gapi.client.drive.files.list({
+      q: `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    const folders = response.result.files || [];
+
+    if (folders.length > 0) {
+      // Delete the folder (this will delete all contents: spreadsheet, photos, voice notes)
+      await gapi.client.drive.files.delete({
+        fileId: folders[0].id,
+      });
+      console.log('Deleted Tünetnapló folder from Google Drive');
+    }
+
+    // Also check if there's a spreadsheet in root (for older setups)
+    const rootResponse = await gapi.client.drive.files.list({
+      q: `name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and 'root' in parents and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    const rootFiles = rootResponse.result.files || [];
+    for (const file of rootFiles) {
+      await gapi.client.drive.files.delete({
+        fileId: file.id,
+      });
+      console.log('Deleted orphan spreadsheet from root');
+    }
+
+    // Clear all tunetnaplo-related localStorage items
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('tunetnaplo')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+    console.log('Cleared localStorage:', keysToRemove);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting all data:', error);
+    return { success: false, error: error.message || 'Ismeretlen hiba történt' };
+  }
+}

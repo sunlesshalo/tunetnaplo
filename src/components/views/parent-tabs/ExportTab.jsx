@@ -1,9 +1,50 @@
-import React from "react";
+import React, { useState } from "react";
 import SectionTitle from "../../shared/SectionTitle";
 import { generateMedicalPDF } from "../../../utils/pdfExport";
 import { todayISO } from "../../../utils/constants";
+import { deleteAllData } from "../../../services/googleSheetsService";
 
 export default function ExportTab({ entries, symptoms }) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  const handleResetData = async () => {
+    if (!showResetConfirm) {
+      setShowResetConfirm(true);
+      return;
+    }
+
+    // Double confirmation with prompt
+    const confirmText = window.prompt(
+      'Ez MINDEN adatot töröl (tünetek, bejegyzések, fotók, hangfelvételek, beállítások).\n\nÍrd be: "TÖRLÉS" a megerősítéshez:'
+    );
+
+    if (confirmText !== "TÖRLÉS") {
+      setShowResetConfirm(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    setResetError("");
+
+    const result = await deleteAllData();
+
+    if (result.success) {
+      // Sign out and reload to start fresh
+      if (window.google?.accounts?.oauth2) {
+        window.google.accounts.oauth2.revoke(
+          window.gapi?.auth?.getToken()?.access_token,
+          () => {}
+        );
+      }
+      window.location.href = "/";
+    } else {
+      setResetError(result.error || "Hiba történt a törlés közben");
+      setIsDeleting(false);
+      setShowResetConfirm(false);
+    }
+  };
   const exportCSV = () => {
     const header = "Dátum,Idő,Tünet,Erősség,Időtartam (perc),Jegyzet,Hangulat,Energia,Tevékenység,Étel,Gyógyszer,Időszak,Hőmérséklet,Időjárás,Légnyomás,Helyszín\n";
     const rows = entries.map((e) => {
@@ -70,6 +111,53 @@ export default function ExportTab({ entries, symptoms }) {
           <li>Étel és gyógyszer (ha van)</li>
           <li>Környezeti adatok (időjárás, hőmérséklet, légnyomás, helyszín)</li>
         </ul>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="mt-8 pt-6 border-t border-red-200">
+        <SectionTitle title="Veszélyzóna" subtitle="Visszafordíthatatlan műveletek" />
+
+        <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-4 space-y-4">
+          <div className="text-sm text-red-700">
+            <p className="font-semibold mb-2">Minden adat törlése</p>
+            <p className="text-xs text-red-600">
+              Ez törli a Google Drive-on tárolt összes adatot (Tünetnapló mappa,
+              tünetek, bejegyzések, fotók, hangfelvételek) és az eszközön tárolt
+              beállításokat (téma, PIN, biometrikus beállítás).
+            </p>
+          </div>
+
+          {resetError && (
+            <p className="text-sm text-red-600 bg-red-100 p-2 rounded-lg">
+              {resetError}
+            </p>
+          )}
+
+          <button
+            onClick={handleResetData}
+            disabled={isDeleting}
+            className={`w-full rounded-xl py-3 font-medium transition-colors ${
+              showResetConfirm
+                ? "bg-red-600 hover:bg-red-700 text-white"
+                : "bg-red-100 hover:bg-red-200 text-red-700"
+            } ${isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {isDeleting
+              ? "Törlés folyamatban..."
+              : showResetConfirm
+              ? "Kattints újra a végleges törléshez"
+              : "Minden adat törlése"}
+          </button>
+
+          {showResetConfirm && (
+            <button
+              onClick={() => setShowResetConfirm(false)}
+              className="w-full rounded-xl py-2 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              Mégse
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
