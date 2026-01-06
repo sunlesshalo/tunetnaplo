@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import AuthenticatedAudio from "../shared/AuthenticatedAudio";
+
+// Convert Google Drive fileId to viewable URL (works for authenticated owner)
+const getPhotoUrl = (fileId) => `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
 
 export default function EntryCard({
   entry,
@@ -217,7 +221,7 @@ export default function EntryCard({
                 {entry.photos.map((photoPath, index) => (
                   <img
                     key={index}
-                    src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/symptom-photos/${photoPath}`}
+                    src={getPhotoUrl(photoPath)}
                     alt={`Symptom photo ${index + 1}`}
                     className="w-full aspect-square object-cover rounded-lg"
                   />
@@ -229,12 +233,8 @@ export default function EntryCard({
           {/* Voice note section */}
           {entry.voice_note && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvétel</h4>
-              <audio
-                controls
-                src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/voice-notes/${entry.voice_note}`}
-                className="w-full h-10"
-              />
+              <h4 className="text-xs font-semibold text-slate-700">🎤 Hangfelvetel</h4>
+              <AuthenticatedAudio fileId={entry.voice_note} className="w-full h-10" />
             </div>
           )}
 

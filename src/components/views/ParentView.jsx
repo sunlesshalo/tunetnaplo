@@ -9,6 +9,8 @@ import ExportTab from "./parent-tabs/ExportTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
+import { countEntriesForSymptom } from "../../services/googleSheetsService";
+import { getSpreadsheetId } from "../../services/googleSheetsService";
 import { useEntryModal } from "../../hooks/useEntryModal";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
@@ -21,6 +23,7 @@ export default function ParentView({ session }) {
     symptoms,
     loading: symptomsLoading,
     addSymptom,
+    updateSymptom: updateSymptomDB,
     deleteSymptom: deleteSymptomDB
   } = useSymptoms(userId);
 
@@ -80,12 +83,33 @@ export default function ParentView({ session }) {
     }
   };
 
+  const updateSymptom = async (symptomId, updates) => {
+    const { error } = await updateSymptomDB(symptomId, updates);
+    if (error) {
+      alert(`Hiba a módosításnál: ${error}`);
+    }
+  };
+
   const deleteSymptom = async (symptomId) => {
-    if (window.confirm("Biztosan törölni szeretnéd ezt a tünetet?")) {
-      const { error } = await deleteSymptomDB(symptomId);
-      if (error) {
-        alert(`Hiba a törlésnél: ${error}`);
+    try {
+      // Get spreadsheet ID and count related entries
+      const spreadsheetId = await getSpreadsheetId(userId);
+      const entryCount = await countEntriesForSymptom(spreadsheetId, symptomId);
+
+      // Build warning message
+      let message = "Biztosan törölni szeretnéd ezt a tünetet?";
+      if (entryCount > 0) {
+        message = `Biztosan törölni szeretnéd ezt a tünetet? Ez ${entryCount} bejegyzést is törölni fog.`;
       }
+
+      if (window.confirm(message)) {
+        const { error } = await deleteSymptomDB(symptomId);
+        if (error) {
+          alert(`Hiba a törlésnél: ${error}`);
+        }
+      }
+    } catch (error) {
+      alert(`Hiba: ${error.message}`);
     }
   };
 
@@ -141,6 +165,7 @@ export default function ParentView({ session }) {
             }}
             symptoms={symptoms}
             onDelete={deleteSymptom}
+            onUpdate={updateSymptom}
           />
         )}
         {tab === 2 && (

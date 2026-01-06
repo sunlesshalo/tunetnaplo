@@ -3,17 +3,42 @@ import SectionTitle from "../shared/SectionTitle";
 import HintCard from "../shared/HintCard";
 import { EMOJI_SET } from "../../utils/constants";
 
-export default function AddSymptomTab({ onAdd, symptoms, onDelete }) {
+export default function AddSymptomTab({ onAdd, symptoms, onDelete, onUpdate }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🤒");
   const [parentOnly, setParentOnly] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const submit = (e) => {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    onAdd({ name: trimmed, emoji, parentOnly });
+
+    if (editingId) {
+      // Update existing symptom
+      onUpdate(editingId, { name: trimmed, emoji, parent_only: parentOnly });
+      setEditingId(null);
+    } else {
+      // Add new symptom
+      onAdd({ name: trimmed, emoji, parentOnly });
+    }
+
+    setName("");
+    setEmoji("🤒");
+    setParentOnly(false);
+  };
+
+  const startEdit = (symptom) => {
+    setEditingId(symptom.id);
+    setName(symptom.name);
+    setEmoji(symptom.emoji);
+    setParentOnly(symptom.parent_only || symptom.parentOnly || false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
     setName("");
     setEmoji("🤒");
     setParentOnly(false);
@@ -21,7 +46,10 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete }) {
 
   return (
     <div className="space-y-6">
-      <SectionTitle title="Új tünet hozzáadása" subtitle="Adj nevet és válassz ikont (emoji)." />
+      <SectionTitle
+        title={editingId ? "Tünet szerkesztése" : "Új tünet hozzáadása"}
+        subtitle={editingId ? "Módosítsd a tünet nevét vagy ikonját." : "Adj nevet és válassz ikont (emoji)."}
+      />
 
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
@@ -75,12 +103,23 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete }) {
           </div>
         </label>
 
-        <button
-          type="submit"
-          className="w-full rounded-2xl bg-sky-500 text-white font-semibold py-3 active:scale-[0.99]"
-        >
-          Hozzáadás
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 rounded-2xl bg-sky-500 text-white font-semibold py-3 active:scale-[0.99]"
+          >
+            {editingId ? "Mentés" : "Hozzáadás"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="px-6 rounded-2xl bg-slate-200 text-slate-700 font-semibold py-3 active:scale-[0.99]"
+            >
+              Mégse
+            </button>
+          )}
+        </div>
       </form>
 
       {symptoms.length > 0 && (
@@ -103,12 +142,20 @@ export default function AddSymptomTab({ onAdd, symptoms, onDelete }) {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => onDelete(s.id)}
-                  className="text-red-500 hover:text-red-700 px-3 py-1 rounded-lg hover:bg-red-50 text-sm font-medium"
-                >
-                  Törlés
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => startEdit(s)}
+                    className="text-sky-600 hover:text-sky-700 px-3 py-1 rounded-lg hover:bg-sky-50 text-sm font-medium"
+                  >
+                    Szerkesztés
+                  </button>
+                  <button
+                    onClick={() => onDelete(s.id)}
+                    className="text-red-500 hover:text-red-700 px-3 py-1 rounded-lg hover:bg-red-50 text-sm font-medium"
+                  >
+                    Törlés
+                  </button>
+                </div>
               </div>
             ))}
           </div>

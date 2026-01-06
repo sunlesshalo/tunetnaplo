@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { uploadPhoto, deletePhoto } from './utils/storageHelpers';
 
+// Convert Google Drive fileId to viewable URL
+const getPhotoUrl = (fileId) => `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+
 export default function PhotoUpload({ userId, photos, onChange }) {
   const [uploading, setUploading] = useState(false);
 
@@ -63,7 +66,7 @@ export default function PhotoUpload({ userId, photos, onChange }) {
           {photos.map((photoPath, index) => (
             <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-slate-100">
               <img
-                src={`https://tpvgxlobmqoyiaqxdhyf.supabase.co/storage/v1/object/public/symptom-photos/${photoPath}`}
+                src={getPhotoUrl(photoPath)}
                 alt={`Symptom photo ${index + 1}`}
                 className="w-full h-full object-cover"
               />

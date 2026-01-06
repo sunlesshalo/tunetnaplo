@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme color variables */
+:root {
+  --theme-color: 56 189 248; /* sky-400 default */
+}
+
+[data-theme="sky"] { --theme-color: 56 189 248; }
+[data-theme="emerald"] { --theme-color: 52 211 153; }
+[data-theme="violet"] { --theme-color: 167 139 250; }
+[data-theme="rose"] { --theme-color: 251 113 133; }
+[data-theme="amber"] { --theme-color: 251 191 36; }
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,4 +20,23 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Success modal animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
 }

@@ -24,8 +24,14 @@ export const captureEnvironment = async () => {
       const weatherResponse = await fetch(weatherUrl);
       if (weatherResponse.ok) {
         const weatherData = await weatherResponse.json();
+        // Fix capitalization - only first letter should be capital
+        const condition = weatherData.weather[0].description;
+        console.log('🌤️ Raw weather from API:', condition);
+        const fixedCondition = condition.charAt(0).toUpperCase() + condition.slice(1).toLowerCase();
+        console.log('🌤️ Fixed weather:', fixedCondition);
+
         env.weather = {
-          condition: weatherData.weather[0].description,
+          condition: fixedCondition,
           temp: Math.round(weatherData.main.temp),
           humidity: weatherData.main.humidity,
           pressure: weatherData.main.pressure,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -16,7 +16,7 @@ export function useEntryModal({
 }) {
   const [activeSymptom, setActiveSymptom] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
-  const [intensity, setIntensity] = useState(5);
+  const [intensity, setIntensity] = useState(1);
   const [note, setNote] = useState('');
   const [duration, setDuration] = useState('');
   const [mood, setMood] = useState('');
@@ -28,8 +28,11 @@ export function useEntryModal({
   const [voiceNote, setVoiceNote] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Use ref to prevent double-submission (synchronous check, no race condition)
+  const isSavingRef = useRef(false);
+
   const resetForm = () => {
-    setIntensity(5);
+    setIntensity(1);
     setNote('');
     setDuration('');
     setMood('');
@@ -59,7 +62,7 @@ export function useEntryModal({
 
     setActiveSymptom(fallbackSymptom);
     setEditingEntry(entry);
-    setIntensity(entry.intensity ?? 5);
+    setIntensity(entry.intensity ?? 1);
     setNote(entry.note || '');
     setDuration(entry.duration ? entry.duration.toString() : '');
 
@@ -78,6 +81,7 @@ export function useEntryModal({
     setActiveSymptom(null);
     setEditingEntry(null);
     setIsSaving(false);
+    isSavingRef.current = false;
   };
 
   const buildContext = () => {
@@ -108,9 +112,11 @@ export function useEntryModal({
       return { error: `${errorLabels.create}: nincs kiválasztott tünet` };
     }
 
-    if (isSaving) {
+    // Synchronous check using ref - prevents race condition on double-click
+    if (isSavingRef.current) {
       return { error: null };
     }
+    isSavingRef.current = true;
 
     setIsSaving(true);
 
@@ -138,6 +144,7 @@ export function useEntryModal({
         return { error: null };
       } finally {
         setIsSaving(false);
+        isSavingRef.current = false;
       }
     }
 
@@ -163,6 +170,7 @@ export function useEntryModal({
       return { error: null };
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
     }
   };
 

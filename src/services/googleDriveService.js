@@ -1,4 +1,10 @@
-import { gapi } from '../googleClient';
+// Helper to get gapi client
+const getGapi = () => {
+  if (!window.gapi || !window.gapi.client) {
+    throw new Error('Google API client not initialized');
+  }
+  return window.gapi;
+};
 
 const PHOTOS_FOLDER_NAME = 'Tünetnapló/photos';
 const VOICE_FOLDER_NAME = 'Tünetnapló/voice';
@@ -8,6 +14,7 @@ const VOICE_FOLDER_NAME = 'Tünetnapló/voice';
  */
 async function findOrCreateFolder(folderName) {
   try {
+    const gapi = getGapi();
     // Split folder path
     const parts = folderName.split('/');
     let parentId = 'root';
@@ -94,6 +101,7 @@ async function getVoiceFolderId(userId) {
  */
 async function uploadFile(file, folderId, fileName) {
   try {
+    const gapi = getGapi();
     const boundary = '-------314159265358979323846';
     const delimiter = "\r\n--" + boundary + "\r\n";
     const close_delim = "\r\n--" + boundary + "--";
@@ -153,31 +161,50 @@ async function uploadFile(file, folderId, fileName) {
 }
 
 /**
- * Get public URL for a file
+ * Get URL for displaying a file
+ * Photos use thumbnail API, voice notes need authenticated blob fetch
+ * Files remain PRIVATE in user's Drive - no public sharing
  */
-async function getFileUrl(fileId) {
+function getPhotoDisplayUrl(fileId) {
+  // Thumbnail API works for authenticated owners viewing their own files
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+}
+
+/**
+ * Fetch file content as blob (for voice notes that need authenticated access)
+ * Uses fetch API with OAuth token for proper binary data handling (iOS compatible)
+ * @param {string} fileId - The file ID to fetch
+ * @returns {Promise<string>} - Blob URL for playback
+ */
+export async function getAuthenticatedBlobUrl(fileId) {
   try {
-    // Make file publicly accessible
-    await gapi.client.drive.permissions.create({
-      fileId: fileId,
-      resource: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    });
+    const gapi = getGapi();
+    // Get the access token from gapi
+    const token = gapi.client.getToken();
+    if (!token || !token.access_token) {
+      throw new Error('No access token available');
+    }
 
-    // Get file metadata to construct URL
-    const response = await gapi.client.drive.files.get({
-      fileId: fileId,
-      fields: 'webContentLink, webViewLink',
-    });
+    // Use fetch with proper binary response handling (works on iOS)
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+        },
+      }
+    );
 
-    // Use webContentLink for direct download or webViewLink for viewing
-    return response.result.webContentLink || response.result.webViewLink;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status}`);
+    }
+
+    // Get as blob (proper binary handling)
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   } catch (error) {
-    console.error('Error getting file URL:', error);
-    // Fallback to direct link format
-    return `https://drive.google.com/uc?id=${fileId}&export=download`;
+    console.error('Error fetching file:', error);
+    throw error;
   }
 }
 
@@ -193,13 +220,10 @@ export async function uploadPhoto(file, userId) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    console.log('📸 Uploading photo:', fileName);
-
     const result = await uploadFile(file, folderId, fileName);
     const fileId = result.id;
-    const url = await getFileUrl(fileId);
-
-    console.log('✅ Photo uploaded:', fileId);
+    // Use thumbnail URL for display (works for authenticated owner)
+    const url = getPhotoDisplayUrl(fileId);
 
     return { fileId, url, error: null };
   } catch (error) {
@@ -216,12 +240,6 @@ export async function uploadPhoto(file, userId) {
  */
 export async function uploadVoiceNote(audioBlob, userId) {
   try {
-    console.log('🎵 uploadVoiceNote called', {
-      userId,
-      blobSize: audioBlob.size,
-      blobType: audioBlob.type,
-    });
-
     const folderId = await getVoiceFolderId(userId);
 
     // Determine file extension from blob type
@@ -232,20 +250,18 @@ export async function uploadVoiceNote(audioBlob, userId) {
     else if (mimeType.includes('wav')) ext = 'wav';
 
     const fileName = `${Date.now()}-voice.${ext}`;
-    console.log('📁 Uploading to:', fileName, 'with type:', mimeType);
 
     // Convert Blob to File
     const file = new File([audioBlob], fileName, { type: mimeType });
 
     const result = await uploadFile(file, folderId, fileName);
     const fileId = result.id;
-    const url = await getFileUrl(fileId);
+    // Voice notes stay private - use getAuthenticatedBlobUrl() for playback
+    // URL is just the fileId reference, playback fetches via API
 
-    console.log('✅ Voice note uploaded:', fileId);
-
-    return { fileId, url, error: null };
+    return { fileId, url: fileId, error: null };
   } catch (error) {
-    console.error('❌ Voice note upload error:', error);
+    console.error('Voice note upload error:', error);
     return { fileId: null, url: null, error: error.message };
   }
 }

@@ -1,18 +1,28 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import Header from "../layout/Header";
 import HomeTab from "./HomeTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
+import SuccessModal from "../shared/SuccessModal";
+import SettingsModal from "../shared/SettingsModal";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { useEntryModal } from "../../hooks/useEntryModal";
+import { useSettings } from "../../hooks/useSettings";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ChildView({ session }) {
   const userId = session?.user?.id;
 
+  // Settings (theme, name)
+  const { theme, userName, setTheme, setUserName, themes } = useSettings();
+
+  // Modal states
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
   // Use Google Sheets hooks for data
-  const { symptoms: allSymptoms, loading: symptomsLoading } = useSymptoms(userId);
-  const { entries, loading: entriesLoading, addEntry, updateEntry, deleteEntry: deleteEntryDB } = useEntries(userId);
+  const { symptoms: allSymptoms } = useSymptoms(userId);
+  const { entries, addEntry, updateEntry, deleteEntry: deleteEntryDB } = useEntries(userId);
 
   // Filter out parent-only symptoms
   const symptoms = useMemo(() => {
@@ -56,6 +66,9 @@ export default function ChildView({ session }) {
     const { error } = await saveEntry();
     if (error) {
       alert(error);
+    } else {
+      // Show success modal
+      setShowSuccess(true);
     }
   };
 
@@ -63,9 +76,17 @@ export default function ChildView({ session }) {
     await confirmDeleteEntry(deleteEntryDB, entryId);
   };
 
+  // Show settings on first use if no name set
+  const handleOpenSettings = () => setShowSettings(true);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-sky-50 text-slate-800 flex flex-col">
-      <Header isChild={true} session={session} />
+      <Header
+        isChild={true}
+        session={session}
+        userName={userName}
+        onOpenSettings={handleOpenSettings}
+      />
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-6">
         <HomeTab symptoms={symptoms} onLog={openLogModal} entries={entries} onEdit={openEditModal} onDelete={handleDeleteEntry} isParentMode={false} />
         <FeedbackBanner variant="child" />
@@ -98,6 +119,21 @@ export default function ChildView({ session }) {
           isSaving={isSaving}
         />
       )}
+
+      <SuccessModal
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+      />
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        userName={userName}
+        setUserName={setUserName}
+        theme={theme}
+        setTheme={setTheme}
+        themes={themes}
+      />
     </div>
   );
 }

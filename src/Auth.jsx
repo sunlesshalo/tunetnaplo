@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signIn } from './googleClient'
+import { signIn, storeUserInfo } from './googleClient'
 
 export default function Auth() {
   const [loading, setLoading] = useState(false)
@@ -15,6 +15,9 @@ export default function Auth() {
       if (error) {
         throw new Error(error)
       }
+
+      // Store user info in localStorage
+      await storeUserInfo(user)
 
       setMessage({
         type: 'success',

@@ -43,9 +43,14 @@ export function useSymptoms(userId) {
     // Set up periodic refresh (since Google Sheets doesn't have realtime)
     const interval = setInterval(() => {
       if (spreadsheetId) {
-        fetchSymptomsFromSheet(spreadsheetId).then((data) => {
-          setSymptoms(data || []);
-        });
+        fetchSymptomsFromSheet(spreadsheetId)
+          .then((data) => {
+            setSymptoms(data || []);
+          })
+          .catch((err) => {
+            console.error('Error refreshing symptoms:', err);
+            // Don't update state on error - keep existing data
+          });
       }
     }, 30000); // Refresh every 30 seconds
 
@@ -141,9 +146,14 @@ export function useEntries(userId) {
     // Set up periodic refresh (since Google Sheets doesn't have realtime)
     const interval = setInterval(() => {
       if (spreadsheetId) {
-        fetchEntriesFromSheet(spreadsheetId).then((data) => {
-          setEntries(data || []);
-        });
+        fetchEntriesFromSheet(spreadsheetId)
+          .then((data) => {
+            setEntries(data || []);
+          })
+          .catch((err) => {
+            console.error('Error refreshing entries:', err);
+            // Don't update state on error - keep existing data
+          });
       }
     }, 30000); // Refresh every 30 seconds
 

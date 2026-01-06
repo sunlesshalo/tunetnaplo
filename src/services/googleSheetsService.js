@@ -1,4 +1,10 @@
-import { gapi } from '../googleClient';
+// Helper to get gapi client
+const getGapi = () => {
+  if (!window.gapi || !window.gapi.client) {
+    throw new Error('Google API client not initialized');
+  }
+  return window.gapi;
+};
 
 const SPREADSHEET_NAME = 'Tünetnapló';
 const SYMPTOMS_SHEET_NAME = 'Symptoms';
@@ -9,6 +15,8 @@ const ENTRIES_SHEET_NAME = 'Entries';
  */
 export async function findOrCreateSpreadsheet() {
   try {
+    const gapi = getGapi();
+
     // Search for existing spreadsheet
     const response = await gapi.client.drive.files.list({
       q: `name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
@@ -143,6 +151,7 @@ function generateId() {
  */
 export async function fetchSymptoms(spreadsheetId) {
   try {
+    const gapi = getGapi();
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${SYMPTOMS_SHEET_NAME}!A2:F`,
@@ -168,6 +177,7 @@ export async function fetchSymptoms(spreadsheetId) {
  */
 export async function addSymptom(spreadsheetId, symptomData) {
   try {
+    const gapi = getGapi();
     const id = generateId();
     const now = new Date().toISOString();
     const row = [
@@ -207,6 +217,7 @@ export async function addSymptom(spreadsheetId, symptomData) {
  */
 export async function updateSymptom(spreadsheetId, symptomId, updates) {
   try {
+    const gapi = getGapi();
     // First, find the row index
     const symptoms = await fetchSymptoms(spreadsheetId);
     const index = symptoms.findIndex((s) => s.id === symptomId);
@@ -255,10 +266,49 @@ export async function updateSymptom(spreadsheetId, symptomId, updates) {
 }
 
 /**
- * Delete a symptom
+ * Get sheet ID by sheet name
+ */
+async function getSheetIdByName(spreadsheetId, sheetName) {
+  const gapi = getGapi();
+  const response = await gapi.client.sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties',
+  });
+
+  const sheet = response.result.sheets.find((s) => s.properties.title === sheetName);
+  return sheet ? sheet.properties.sheetId : null;
+}
+
+/**
+ * Count entries for a symptom
+ */
+export async function countEntriesForSymptom(spreadsheetId, symptomId) {
+  try {
+    const entries = await fetchEntries(spreadsheetId);
+    return entries.filter((e) => e.symptom_id === symptomId).length;
+  } catch (error) {
+    console.error('Error counting entries:', error);
+    return 0;
+  }
+}
+
+/**
+ * Delete a symptom (with cascade delete of related entries)
  */
 export async function deleteSymptom(spreadsheetId, symptomId) {
   try {
+    const gapi = getGapi();
+
+    // First, delete all entries with this symptom_id (cascade delete)
+    const entries = await fetchEntries(spreadsheetId);
+    const relatedEntries = entries.filter((e) => e.symptom_id === symptomId);
+
+    // Delete entries in reverse order to avoid index shifting issues
+    for (let i = relatedEntries.length - 1; i >= 0; i--) {
+      await deleteEntry(spreadsheetId, relatedEntries[i].id);
+    }
+
+    // Now delete the symptom itself
     const symptoms = await fetchSymptoms(spreadsheetId);
     const index = symptoms.findIndex((s) => s.id === symptomId);
 
@@ -267,6 +317,11 @@ export async function deleteSymptom(spreadsheetId, symptomId) {
     }
 
     const rowNumber = index + 2;
+    const sheetId = await getSheetIdByName(spreadsheetId, SYMPTOMS_SHEET_NAME);
+
+    if (sheetId === null) {
+      throw new Error('Symptoms sheet not found');
+    }
 
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -275,7 +330,7 @@ export async function deleteSymptom(spreadsheetId, symptomId) {
           {
             deleteDimension: {
               range: {
-                sheetId: 0, // Symptoms sheet is first (ID 0)
+                sheetId: sheetId,
                 dimension: 'ROWS',
                 startIndex: rowNumber - 1,
                 endIndex: rowNumber,
@@ -296,6 +351,7 @@ export async function deleteSymptom(spreadsheetId, symptomId) {
  */
 export async function fetchEntries(spreadsheetId) {
   try {
+    const gapi = getGapi();
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${ENTRIES_SHEET_NAME}!A2:M`,
@@ -330,6 +386,7 @@ export async function fetchEntries(spreadsheetId) {
  */
 export async function addEntry(spreadsheetId, entryData) {
   try {
+    const gapi = getGapi();
     const id = generateId();
     const now = new Date().toISOString();
     const row = [
@@ -374,6 +431,7 @@ export async function addEntry(spreadsheetId, entryData) {
  */
 export async function updateEntry(spreadsheetId, entryId, updates) {
   try {
+    const gapi = getGapi();
     const entries = await fetchEntries(spreadsheetId);
     const index = entries.findIndex((e) => e.id === entryId);
 
@@ -426,6 +484,7 @@ export async function updateEntry(spreadsheetId, entryId, updates) {
  */
 export async function deleteEntry(spreadsheetId, entryId) {
   try {
+    const gapi = getGapi();
     const entries = await fetchEntries(spreadsheetId);
     const index = entries.findIndex((e) => e.id === entryId);
 
@@ -434,6 +493,11 @@ export async function deleteEntry(spreadsheetId, entryId) {
     }
 
     const rowNumber = index + 2;
+    const sheetId = await getSheetIdByName(spreadsheetId, ENTRIES_SHEET_NAME);
+
+    if (sheetId === null) {
+      throw new Error('Entries sheet not found');
+    }
 
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -442,7 +506,7 @@ export async function deleteEntry(spreadsheetId, entryId) {
           {
             deleteDimension: {
               range: {
-                sheetId: 1, // Entries sheet is second (ID 1)
+                sheetId: sheetId,
                 dimension: 'ROWS',
                 startIndex: rowNumber - 1,
                 endIndex: rowNumber,
