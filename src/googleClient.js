@@ -103,8 +103,8 @@ export async function signIn() {
         resolve({ user: await getUserInfo(), error: null });
       };
 
-      // Request access token
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      // Request access token - select_account forces account picker
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
     } catch (error) {
       console.error('Sign in error:', error);
       reject({ user: null, error: error.message });
