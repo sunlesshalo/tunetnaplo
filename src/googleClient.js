@@ -14,9 +14,107 @@ const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
 ].join(' ');
 
+// Storage keys
+const TOKEN_KEY = 'tunetnaplo_access_token';
+const TOKEN_EXPIRY_KEY = 'tunetnaplo_token_expiry';
+
 let tokenClient = null;
 let accessToken = null;
 let gapiInitialized = false;
+let tokenRefreshTimeout = null;
+
+/**
+ * Store token in localStorage with expiry
+ */
+function storeToken(token, expiresIn) {
+  accessToken = token;
+  const expiryTime = Date.now() + (expiresIn * 1000);
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
+
+  // Schedule token refresh 5 minutes before expiry
+  scheduleTokenRefresh(expiresIn);
+}
+
+/**
+ * Get stored token if still valid
+ */
+function getStoredToken() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+
+  if (!token || !expiry) return null;
+
+  // Check if token is expired (with 5 minute buffer)
+  const expiryTime = parseInt(expiry, 10);
+  if (Date.now() > expiryTime - 300000) {
+    // Token expired or about to expire
+    clearStoredToken();
+    return null;
+  }
+
+  return token;
+}
+
+/**
+ * Clear stored token
+ */
+function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  accessToken = null;
+  if (tokenRefreshTimeout) {
+    clearTimeout(tokenRefreshTimeout);
+    tokenRefreshTimeout = null;
+  }
+}
+
+/**
+ * Schedule silent token refresh before expiry
+ */
+function scheduleTokenRefresh(expiresIn) {
+  if (tokenRefreshTimeout) {
+    clearTimeout(tokenRefreshTimeout);
+  }
+
+  // Refresh 5 minutes before expiry
+  const refreshIn = (expiresIn - 300) * 1000;
+  if (refreshIn > 0) {
+    tokenRefreshTimeout = setTimeout(() => {
+      console.log('🔄 Token refresh scheduled...');
+      silentTokenRefresh();
+    }, refreshIn);
+  }
+}
+
+/**
+ * Silently refresh token without user interaction
+ */
+async function silentTokenRefresh() {
+  return new Promise((resolve) => {
+    if (!tokenClient) {
+      resolve(false);
+      return;
+    }
+
+    tokenClient.callback = async (response) => {
+      if (response.error) {
+        console.log('Silent refresh failed, user needs to re-authenticate');
+        clearStoredToken();
+        resolve(false);
+        return;
+      }
+
+      storeToken(response.access_token, response.expires_in);
+      window.gapi.client.setToken({ access_token: response.access_token });
+      console.log('✅ Token silently refreshed');
+      resolve(true);
+    };
+
+    // Request token silently (no prompt)
+    tokenClient.requestAccessToken({ prompt: '' });
+  });
+}
 
 /**
  * Initialize the Google API client (gapi)
@@ -43,7 +141,20 @@ export async function initGoogleClient() {
           console.log('✅ Google API client initialized');
 
           // Initialize Google Identity Services (GIS) token client
-          initTokenClient();
+          await initTokenClient();
+
+          // Try to restore session from stored token
+          const storedToken = getStoredToken();
+          if (storedToken) {
+            accessToken = storedToken;
+            window.gapi.client.setToken({ access_token: storedToken });
+            console.log('✅ Session restored from stored token');
+
+            // Calculate remaining time and schedule refresh
+            const expiry = parseInt(localStorage.getItem(TOKEN_EXPIRY_KEY), 10);
+            const remainingSeconds = Math.floor((expiry - Date.now()) / 1000);
+            scheduleTokenRefresh(remainingSeconds);
+          }
 
           resolve();
         } catch (error) {
@@ -61,18 +172,33 @@ export async function initGoogleClient() {
  * Initialize Google Identity Services (GIS) token client
  */
 function initTokenClient() {
-  // Load the GIS library
-  const script = document.createElement('script');
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.onload = () => {
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: '', // Set dynamically during sign-in
-    });
-    console.log('✅ Token client initialized');
-  };
-  document.head.appendChild(script);
+  return new Promise((resolve) => {
+    // Check if already loaded
+    if (window.google?.accounts?.oauth2) {
+      tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: '', // Set dynamically during sign-in
+      });
+      console.log('✅ Token client initialized');
+      resolve();
+      return;
+    }
+
+    // Load the GIS library
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => {
+      tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: '', // Set dynamically during sign-in
+      });
+      console.log('✅ Token client initialized');
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
 }
 
 /**
@@ -94,13 +220,16 @@ export async function signIn() {
           return;
         }
 
-        accessToken = response.access_token;
+        // Store token with expiry
+        storeToken(response.access_token, response.expires_in);
 
         // Set the access token for gapi client
         window.gapi.client.setToken({ access_token: accessToken });
 
         console.log('✅ Sign in successful');
-        resolve({ user: await getUserInfo(), error: null });
+        const userInfo = await getUserInfo();
+        await storeUserInfo(userInfo);
+        resolve({ user: userInfo, error: null });
       };
 
       // Request access token - select_account forces account picker
@@ -149,7 +278,7 @@ export async function signOut() {
         console.log('✅ Token revoked');
       });
 
-      accessToken = null;
+      clearStoredToken();
       window.gapi.client.setToken(null);
     }
     return { error: null };
@@ -179,6 +308,12 @@ export function getCurrentUser() {
  * Check if user is signed in
  */
 export function isSignedIn() {
+  // Check for valid stored token first
+  const storedToken = getStoredToken();
+  if (storedToken) {
+    accessToken = storedToken;
+    return true;
+  }
   return accessToken !== null && window.gapi?.client?.getToken() !== null;
 }
 
