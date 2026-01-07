@@ -165,8 +165,11 @@ export function useEntries(userId) {
     try {
       const data = await addEntryToSheet(spreadsheetId, entryData);
 
-      // Update local state
-      setEntries((prev) => [data, ...prev]);
+      // Update local state and sort by timestamp (newest first)
+      setEntries((prev) => {
+        const updated = [data, ...prev];
+        return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      });
 
       return { data, error: null };
     } catch (err) {
@@ -180,8 +183,11 @@ export function useEntries(userId) {
     try {
       const data = await updateEntryInSheet(spreadsheetId, entryId, updates);
 
-      // Update local state
-      setEntries((prev) => prev.map((e) => (e.id === entryId ? data : e)));
+      // Update local state and re-sort by timestamp (newest first)
+      setEntries((prev) => {
+        const updated = prev.map((e) => (e.id === entryId ? data : e));
+        return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      });
 
       return { data, error: null };
     } catch (err) {
