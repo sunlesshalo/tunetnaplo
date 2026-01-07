@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const nowTime = () => {
+  const now = new Date();
+  return now.toTimeString().slice(0, 5); // HH:MM format
+};
 
 export function useEntryModal({
   symptoms,
@@ -26,6 +30,8 @@ export function useEntryModal({
   const [medicationNote, setMedicationNote] = useState('');
   const [photos, setPhotos] = useState([]);
   const [voiceNote, setVoiceNote] = useState(null);
+  const [entryDate, setEntryDate] = useState(todayISO());
+  const [entryTime, setEntryTime] = useState(nowTime());
   const [isSaving, setIsSaving] = useState(false);
 
   // Use ref to prevent double-submission (synchronous check, no race condition)
@@ -42,6 +48,8 @@ export function useEntryModal({
     setMedicationNote('');
     setPhotos([]);
     setVoiceNote(null);
+    setEntryDate(todayISO());
+    setEntryTime(nowTime());
     setIsSaving(false);
   };
 
@@ -65,6 +73,19 @@ export function useEntryModal({
     setIntensity(entry.intensity ?? 1);
     setNote(entry.note || '');
     setDuration(entry.duration ? entry.duration.toString() : '');
+
+    // Parse date/time from entry timestamp
+    if (entry.timestamp) {
+      const ts = new Date(entry.timestamp);
+      setEntryDate(ts.toISOString().slice(0, 10));
+      setEntryTime(ts.toTimeString().slice(0, 5));
+    } else if (entry.date) {
+      setEntryDate(entry.date);
+      setEntryTime('12:00'); // Default to noon if no timestamp
+    } else {
+      setEntryDate(todayISO());
+      setEntryTime(nowTime());
+    }
 
     const context = entry.context || {};
     setMood(context.mood || '');
@@ -120,12 +141,18 @@ export function useEntryModal({
 
     setIsSaving(true);
 
+    // Build timestamp from entryDate and entryTime
+    const buildTimestamp = () => {
+      const dateTime = new Date(`${entryDate}T${entryTime}:00`);
+      return dateTime.toISOString();
+    };
+
     if (!editingEntry) {
       try {
         const environment = typeof getEnvironment === 'function' ? await getEnvironment() : null;
         const payload = {
-          date: todayISO(),
-          timestamp: new Date().toISOString(),
+          date: entryDate,
+          timestamp: buildTimestamp(),
           symptom_id: activeSymptom.id,
           intensity: Number(intensity),
           duration: duration ? Number(duration) : null,
@@ -150,6 +177,8 @@ export function useEntryModal({
 
     try {
       const payload = {
+        date: entryDate,
+        timestamp: buildTimestamp(),
         intensity: Number(intensity),
         duration: duration ? Number(duration) : null,
         note: note.trim(),
@@ -197,6 +226,10 @@ export function useEntryModal({
     setPhotos,
     voiceNote,
     setVoiceNote,
+    entryDate,
+    setEntryDate,
+    entryTime,
+    setEntryTime,
     openLogModal,
     openEditModal,
     closeLogModal,

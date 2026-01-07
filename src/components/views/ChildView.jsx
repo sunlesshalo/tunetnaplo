@@ -48,6 +48,10 @@ export default function ChildView({ session }) {
     setPhotos,
     voiceNote,
     setVoiceNote,
+    entryDate,
+    setEntryDate,
+    entryTime,
+    setEntryTime,
     openLogModal,
     openEditModal,
     closeLogModal,
@@ -111,6 +115,10 @@ export default function ChildView({ session }) {
           setPhotos={setPhotos}
           voiceNote={voiceNote}
           setVoiceNote={setVoiceNote}
+          entryDate={entryDate}
+          setEntryDate={setEntryDate}
+          entryTime={entryTime}
+          setEntryTime={setEntryTime}
           userId={userId}
           isParentMode={false}
           isEditing={!!editingEntry}

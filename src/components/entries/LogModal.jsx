@@ -24,6 +24,10 @@ export default function LogModal({
   setPhotos,
   voiceNote,
   setVoiceNote,
+  entryDate,
+  setEntryDate,
+  entryTime,
+  setEntryTime,
   userId,
   isParentMode,
   isEditing,
@@ -67,6 +71,25 @@ export default function LogModal({
         <div className="flex items-center gap-3 mb-3">
           <span className="text-3xl">{symptom.emoji}</span>
           <h3 className="text-lg font-semibold">{symptom.name}</h3>
+        </div>
+
+        {/* Date/Time picker */}
+        <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="text-xs font-medium text-slate-600 mb-2 block">Mikor történt?</span>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={entryDate}
+              onChange={(e) => setEntryDate(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-sm"
+            />
+            <input
+              type="time"
+              value={entryTime}
+              onChange={(e) => setEntryTime(e.target.value)}
+              className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-theme text-sm"
+            />
+          </div>
         </div>
 
         <label className="block mb-4">

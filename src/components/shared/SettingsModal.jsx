@@ -24,6 +24,7 @@ export default function SettingsModal({
 }) {
   const navigate = useNavigate();
   const [tempName, setTempName] = useState(userName);
+  const [tempTheme, setTempTheme] = useState(theme);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
   const [showPinSetup, setShowPinSetup] = useState(false);
@@ -33,7 +34,7 @@ export default function SettingsModal({
   const [biometricName, setBiometricName] = useState("");
   const [showBiometricFallback, setShowBiometricFallback] = useState(false);
 
-  // Check biometric availability on mount
+  // Reset temp values and check biometric availability when modal opens
   useEffect(() => {
     async function checkBiometric() {
       const available = await isBiometricAvailable();
@@ -43,15 +44,19 @@ export default function SettingsModal({
       }
     }
     if (isOpen) {
+      // Reset temp values to current saved values when modal opens
+      setTempName(userName);
+      setTempTheme(theme);
       checkBiometric();
       setShowBiometricFallback(false);
     }
-  }, [isOpen]);
+  }, [isOpen, userName, theme]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
     setUserName(tempName.trim());
+    setTheme(tempTheme);
     onClose();
   };
 
@@ -153,9 +158,9 @@ export default function SettingsModal({
             {themes.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTheme(t.id)}
+                onClick={() => setTempTheme(t.id)}
                 className={`w-12 h-12 rounded-full transition-all ${
-                  theme === t.id
+                  tempTheme === t.id
                     ? "ring-4 ring-offset-2 ring-slate-400 scale-110"
                     : "hover:scale-105"
                 }`}
