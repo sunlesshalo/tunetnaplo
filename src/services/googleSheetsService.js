@@ -640,12 +640,46 @@ export async function addEntry(spreadsheetId, entryData) {
 }
 
 /**
+ * Fetch entries in raw order (no sorting) - for internal use
+ */
+async function fetchEntriesRaw(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${ENTRIES_SHEET_NAME}!A2:M`,
+    });
+
+    const rows = response.result.values || [];
+    return rows.map((row) => ({
+      id: row[0],
+      symptom_id: row[1],
+      date: row[2],
+      timestamp: row[3],
+      intensity: parseInt(row[4]) || 0,
+      duration: row[5] ? parseInt(row[5]) : null,
+      note: row[6] || '',
+      context: row[7] ? JSON.parse(row[7]) : {},
+      environment: row[8] ? JSON.parse(row[8]) : null,
+      photos: row[9] ? JSON.parse(row[9]) : null,
+      voice_note: row[10] || null,
+      created_at: row[11],
+      updated_at: row[12],
+    }));
+  } catch (error) {
+    console.error('Error fetching raw entries:', error);
+    return [];
+  }
+}
+
+/**
  * Update an entry
  */
 export async function updateEntry(spreadsheetId, entryId, updates) {
   try {
     const gapi = getGapi();
-    const entries = await fetchEntries(spreadsheetId);
+    // Use raw (unsorted) entries to get correct row index
+    const entries = await fetchEntriesRaw(spreadsheetId);
     const index = entries.findIndex((e) => e.id === entryId);
 
     if (index === -1) {
@@ -659,8 +693,8 @@ export async function updateEntry(spreadsheetId, entryId, updates) {
     const row = [
       entry.id,
       updates.symptom_id !== undefined ? updates.symptom_id : entry.symptom_id,
-      entry.date,
-      entry.timestamp,
+      updates.date !== undefined ? updates.date : entry.date,
+      updates.timestamp !== undefined ? updates.timestamp : entry.timestamp,
       updates.intensity !== undefined ? updates.intensity : entry.intensity,
       updates.duration !== undefined ? updates.duration || '' : entry.duration || '',
       updates.note !== undefined ? updates.note : entry.note,
@@ -698,7 +732,8 @@ export async function updateEntry(spreadsheetId, entryId, updates) {
 export async function deleteEntry(spreadsheetId, entryId) {
   try {
     const gapi = getGapi();
-    const entries = await fetchEntries(spreadsheetId);
+    // Use raw (unsorted) entries to get correct row index
+    const entries = await fetchEntriesRaw(spreadsheetId);
     const index = entries.findIndex((e) => e.id === entryId);
 
     if (index === -1) {
