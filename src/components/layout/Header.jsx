@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { signOut } from "../../googleClient";
 import { getGreeting } from "../../hooks/useSettings";
 
-export default function Header({ isChild, session, userName, onOpenSettings }) {
+export default function Header({ isChild, session, userName, onOpenSettings, onOpenFeedback }) {
   const handleSignOut = async () => {
     await signOut();
     window.location.reload(); // Reload to clear state
@@ -33,13 +33,22 @@ export default function Header({ isChild, session, userName, onOpenSettings }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {onOpenSettings && (
+          {isChild && onOpenSettings && (
             <button
               onClick={onOpenSettings}
               className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
               aria-label="Beállítások"
             >
               <span className="text-lg">⚙️</span>
+            </button>
+          )}
+          {!isChild && onOpenFeedback && (
+            <button
+              onClick={onOpenFeedback}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
+              aria-label="Visszajelzés"
+            >
+              <span className="text-lg">✉️</span>
             </button>
           )}
           {!isChild && (

@@ -7,7 +7,7 @@ import ManageEntriesTab from "./parent-tabs/ManageEntriesTab";
 import PatternsTab from "../stats/PatternsTab";
 import ExportTab from "./parent-tabs/ExportTab";
 import LogModal from "../entries/LogModal";
-import SettingsModal from "../shared/SettingsModal";
+import FeedbackModal from "../shared/FeedbackModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import OfflineBanner from "../shared/OfflineBanner";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
@@ -19,23 +19,13 @@ import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
-  const [showSettings, setShowSettings] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Use Google Sheets hooks for data
   const userId = session?.user?.id;
 
-  // Settings (theme, name, PIN, biometric) - sync shared settings via Google Sheets
-  const {
-    theme,
-    userName,
-    parentPin,
-    biometricEnabled,
-    setTheme,
-    setUserName,
-    setParentPin,
-    setBiometricEnabled,
-    themes,
-  } = useSettings(userId);
+  // Apply theme from settings (synced via Google Sheets)
+  useSettings(userId);
   const {
     symptoms,
     loading: symptomsLoading,
@@ -163,7 +153,7 @@ export default function ParentView({ session }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
       <OfflineBanner />
-      <Header isChild={false} session={session} onOpenSettings={() => setShowSettings(true)} />
+      <Header isChild={false} session={session} onOpenFeedback={() => setShowFeedback(true)} />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">
         {tab === 0 && (
@@ -243,18 +233,9 @@ export default function ParentView({ session }) {
         />
       )}
 
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        userName={userName}
-        setUserName={setUserName}
-        theme={theme}
-        setTheme={setTheme}
-        themes={themes}
-        parentPin={parentPin}
-        setParentPin={setParentPin}
-        biometricEnabled={biometricEnabled}
-        setBiometricEnabled={setBiometricEnabled}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
       />
     </div>
   );
