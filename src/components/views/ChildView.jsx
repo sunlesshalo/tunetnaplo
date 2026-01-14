@@ -5,6 +5,7 @@ import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import SuccessModal from "../shared/SuccessModal";
 import SettingsModal from "../shared/SettingsModal";
+import OfflineBanner from "../shared/OfflineBanner";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { useEntryModal } from "../../hooks/useEntryModal";
 import { useSettings } from "../../hooks/useSettings";
@@ -85,6 +86,7 @@ export default function ChildView({ session }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
+      <OfflineBanner />
       <Header
         isChild={true}
         session={session}

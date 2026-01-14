@@ -8,6 +8,7 @@ import PatternsTab from "../stats/PatternsTab";
 import ExportTab from "./parent-tabs/ExportTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
+import OfflineBanner from "../shared/OfflineBanner";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { countEntriesForSymptom } from "../../services/googleSheetsService";
 import { getSpreadsheetId } from "../../services/googleSheetsService";
@@ -149,6 +150,7 @@ export default function ParentView({ session }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
+      <OfflineBanner />
       <Header isChild={false} session={session} />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">
