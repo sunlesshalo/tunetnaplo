@@ -11,6 +11,7 @@ import {
   updateEntry as updateEntryInSheet,
   deleteEntry as deleteEntryFromSheet,
 } from '../services/googleSheetsService';
+import { translateError } from '../utils/errorMessages';
 
 // Custom hook for managing symptoms
 export function useSymptoms(userId) {
@@ -31,7 +32,7 @@ export function useSymptoms(userId) {
       setSymptoms(data || []);
     } catch (err) {
       console.error('Error loading symptoms:', err);
-      setError(err.message);
+      setError(translateError(err));
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ export function useSymptoms(userId) {
       return { data, error: null };
     } catch (err) {
       console.error('❌ Error adding symptom:', err);
-      return { data: null, error: err.message };
+      return { data: null, error: translateError(err) };
     }
   };
 
@@ -85,7 +86,7 @@ export function useSymptoms(userId) {
       return { data, error: null };
     } catch (err) {
       console.error('Error updating symptom:', err);
-      return { data: null, error: err.message };
+      return { data: null, error: translateError(err) };
     }
   };
 
@@ -100,7 +101,7 @@ export function useSymptoms(userId) {
       return { error: null };
     } catch (err) {
       console.error('Error deleting symptom:', err);
-      return { error: err.message };
+      return { error: translateError(err) };
     }
   };
 
@@ -134,7 +135,7 @@ export function useEntries(userId) {
       setEntries(data || []);
     } catch (err) {
       console.error('Error loading entries:', err);
-      setError(err.message);
+      setError(translateError(err));
     } finally {
       setLoading(false);
     }
@@ -174,7 +175,7 @@ export function useEntries(userId) {
       return { data, error: null };
     } catch (err) {
       console.error('Error adding entry:', err);
-      return { data: null, error: err.message };
+      return { data: null, error: translateError(err) };
     }
   };
 
@@ -192,7 +193,7 @@ export function useEntries(userId) {
       return { data, error: null };
     } catch (err) {
       console.error('Error updating entry:', err);
-      return { data: null, error: err.message };
+      return { data: null, error: translateError(err) };
     }
   };
 
@@ -215,7 +216,7 @@ export function useEntries(userId) {
       const data = await fetchEntriesFromSheet(spreadsheetId);
       setEntries(data || []);
 
-      return { error: err.message };
+      return { error: translateError(err) };
     }
   };
 
