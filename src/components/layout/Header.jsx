@@ -33,7 +33,7 @@ export default function Header({ isChild, session, userName, onOpenSettings }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isChild && onOpenSettings && (
+          {onOpenSettings && (
             <button
               onClick={onOpenSettings}
               className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"

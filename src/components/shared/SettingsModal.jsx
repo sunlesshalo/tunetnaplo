@@ -8,6 +8,7 @@ import {
   removeBiometricCredential,
   hasBiometricCredential,
 } from "../../utils/biometricAuth";
+import FeedbackModal from "./FeedbackModal";
 
 export default function SettingsModal({
   isOpen,
@@ -33,6 +34,7 @@ export default function SettingsModal({
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricName, setBiometricName] = useState("");
   const [showBiometricFallback, setShowBiometricFallback] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Reset temp values and check biometric availability when modal opens
   useEffect(() => {
@@ -169,6 +171,18 @@ export default function SettingsModal({
               />
             ))}
           </div>
+        </div>
+
+        {/* Feedback button */}
+        <div className="mb-6 pt-4 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => setShowFeedback(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
+          >
+            <span className="text-lg">💬</span>
+            Visszajelzés küldése
+          </button>
         </div>
 
         {/* Parent mode section */}
@@ -331,6 +345,12 @@ export default function SettingsModal({
           </button>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+      />
     </div>
   );
 }
