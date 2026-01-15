@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { signOut } from '../../googleClient';
 import ShareSettingsSection from './ShareSettingsSection';
+import FeedbackModal from './FeedbackModal';
 
 /**
  * Settings modal for Parent mode
- * Includes sharing settings and profile management
+ * Includes sharing settings, profile management, and navigation
  */
 export default function ParentSettingsModal({
   isOpen,
@@ -12,7 +15,19 @@ export default function ParentSettingsModal({
   activeProfile,
   profiles,
 }) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('general');
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  const handleSwitchToChild = () => {
+    onClose();
+    navigate('/');
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.reload();
+  };
 
   if (!isOpen) return null;
 
@@ -119,17 +134,44 @@ export default function ParentSettingsModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 pt-4 border-t border-slate-200">
+        {/* Footer with actions */}
+        <div className="p-6 pt-4 border-t border-slate-200 space-y-3">
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSwitchToChild}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-theme/10 hover:bg-theme/20 py-3 font-medium text-theme transition-colors"
+            >
+              <span>🧸</span>
+              Gyerek mód
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFeedback(true)}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
+            >
+              <span>💬</span>
+              Visszajelzés
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={onClose}
-            className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 py-3 font-medium text-slate-700 transition-colors"
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-50 hover:bg-red-100 py-3 font-medium text-red-600 transition-colors"
           >
-            Bezárás
+            <span>🚪</span>
+            Kilépés
           </button>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+      />
     </div>
   );
 }

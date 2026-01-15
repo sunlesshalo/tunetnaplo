@@ -1,14 +1,7 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { signOut } from "../../googleClient";
 import { getGreeting } from "../../hooks/useSettings";
 
-export default function Header({ isChild, session, userName, onOpenSettings, onOpenFeedback, profileSwitcher }) {
-  const handleSignOut = async () => {
-    await signOut();
-    window.location.reload(); // Reload to clear state
-  };
-
+export default function Header({ isChild, session, userName, onOpenSettings, profileSwitcher }) {
   const greeting = getGreeting();
 
   return (
@@ -33,9 +26,7 @@ export default function Header({ isChild, session, userName, onOpenSettings, onO
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Profile switcher for parent mode */}
-          {!isChild && profileSwitcher}
-
+          {/* Child mode: settings button */}
           {isChild && onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -45,6 +36,9 @@ export default function Header({ isChild, session, userName, onOpenSettings, onO
               <span className="text-lg">⚙️</span>
             </button>
           )}
+
+          {/* Parent mode: profile switcher + settings */}
+          {!isChild && profileSwitcher}
           {!isChild && onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -52,28 +46,6 @@ export default function Header({ isChild, session, userName, onOpenSettings, onO
               aria-label="Beállítások"
             >
               <span className="text-lg">⚙️</span>
-            </button>
-          )}
-          {!isChild && onOpenFeedback && (
-            <button
-              onClick={onOpenFeedback}
-              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
-              aria-label="Visszajelzés"
-            >
-              <span className="text-lg">✉️</span>
-            </button>
-          )}
-          {!isChild && (
-            <Link to="/" className="text-sm text-theme hover:text-theme-dark font-medium">
-              Gyerek →
-            </Link>
-          )}
-          {!isChild && (
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
-            >
-              Kilépés
             </button>
           )}
         </div>

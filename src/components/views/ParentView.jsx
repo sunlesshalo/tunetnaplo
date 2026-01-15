@@ -7,7 +7,6 @@ import ManageEntriesTab from "./parent-tabs/ManageEntriesTab";
 import PatternsTab from "../stats/PatternsTab";
 import ExportTab from "./parent-tabs/ExportTab";
 import LogModal from "../entries/LogModal";
-import FeedbackModal from "../shared/FeedbackModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import OfflineBanner from "../shared/OfflineBanner";
 import ProfileSwitcher from "../shared/ProfileSwitcher";
@@ -23,7 +22,6 @@ import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
-  const [showFeedback, setShowFeedback] = useState(false);
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
@@ -194,7 +192,6 @@ export default function ParentView({ session }) {
       <Header
         isChild={false}
         session={session}
-        onOpenFeedback={() => setShowFeedback(true)}
         onOpenSettings={() => setShowSettings(true)}
         profileSwitcher={
           <ProfileSwitcher
@@ -283,11 +280,6 @@ export default function ParentView({ session }) {
           isSaving={isSaving}
         />
       )}
-
-      <FeedbackModal
-        isOpen={showFeedback}
-        onClose={() => setShowFeedback(false)}
-      />
 
       <AddProfileModal
         isOpen={showAddProfile}
