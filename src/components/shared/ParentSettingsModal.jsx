@@ -62,7 +62,13 @@ export default function ParentSettingsModal({
         await loadSharedUsers();
         setTimeout(() => setShareSuccess(''), 3000);
       } else {
-        setShareError(result.error || 'Nem sikerült meghívni');
+        // Check if it's a permission/scope error - user may need to re-login
+        const errorLower = (result.error || '').toLowerCase();
+        if (errorLower.includes('permission') || errorLower.includes('scope') || errorLower.includes('insufficient')) {
+          setShareError('Nincs jogosultság a megosztáshoz. Kérlek jelentkezz ki és vissza a Beállításokban.');
+        } else {
+          setShareError(result.error || 'Nem sikerült meghívni');
+        }
       }
     } catch (err) {
       setShareError('Nem sikerült meghívni');

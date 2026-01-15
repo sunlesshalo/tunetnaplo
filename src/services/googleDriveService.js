@@ -339,14 +339,15 @@ export async function shareWithParent(spreadsheetId, email) {
     const gapi = getGapi();
 
     // Share the spreadsheet with writer access
+    // Note: gapi.client uses 'resource' for request body, not 'requestBody'
     await gapi.client.drive.permissions.create({
       fileId: spreadsheetId,
-      requestBody: {
+      sendNotificationEmail: true,
+      resource: {
         type: 'user',
         role: 'writer',
         emailAddress: email,
       },
-      sendNotificationEmail: true,
     });
 
     console.log(`✅ Shared spreadsheet with ${email}`);
@@ -356,7 +357,7 @@ export async function shareWithParent(spreadsheetId, email) {
     if (folderId) {
       await gapi.client.drive.permissions.create({
         fileId: folderId,
-        requestBody: {
+        resource: {
           type: 'user',
           role: 'writer',
           emailAddress: email,
@@ -369,7 +370,9 @@ export async function shareWithParent(spreadsheetId, email) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error sharing with parent:', error);
-    return { success: false, error: error.message || 'Nem sikerült megosztani' };
+    // Extract more specific error message if available
+    const errorMessage = error?.result?.error?.message || error.message || 'Nem sikerült megosztani';
+    return { success: false, error: errorMessage };
   }
 }
 
