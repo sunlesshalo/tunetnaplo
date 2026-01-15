@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getUserId } from '../googleClient';
 import {
   getSpreadsheetId,
@@ -14,11 +14,18 @@ import {
 import { translateError } from '../utils/errorMessages';
 
 // Custom hook for managing symptoms
-export function useSymptoms(userId) {
-  const [symptoms, setSymptoms] = useState([]);
+// profileId: optional - if provided, filters symptoms by profile
+export function useSymptoms(userId, profileId = null) {
+  const [allSymptoms, setAllSymptoms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [spreadsheetId, setSpreadsheetId] = useState(null);
+
+  // Filter symptoms by profile
+  const symptoms = useMemo(() => {
+    if (!profileId) return allSymptoms;
+    return allSymptoms.filter((s) => s.profile_id === profileId);
+  }, [allSymptoms, profileId]);
 
   // Initialize spreadsheet and load symptoms
   const loadSymptoms = useCallback(async () => {
@@ -29,7 +36,7 @@ export function useSymptoms(userId) {
       setSpreadsheetId(sheetId);
 
       const data = await fetchSymptomsFromSheet(sheetId);
-      setSymptoms(data || []);
+      setAllSymptoms(data || []);
     } catch (err) {
       console.error('Error loading symptoms:', err);
       setError(translateError(err));
@@ -46,7 +53,7 @@ export function useSymptoms(userId) {
       if (spreadsheetId) {
         fetchSymptomsFromSheet(spreadsheetId)
           .then((data) => {
-            setSymptoms(data || []);
+            setAllSymptoms(data || []);
           })
           .catch((err) => {
             console.error('Error refreshing symptoms:', err);
@@ -58,15 +65,19 @@ export function useSymptoms(userId) {
     return () => clearInterval(interval);
   }, [userId, loadSymptoms, spreadsheetId]);
 
-  // Add symptom
+  // Add symptom (automatically includes profile_id if provided)
   const addSymptom = async (symptomData) => {
     try {
       console.log('🔵 Adding symptom:', symptomData);
-      const data = await addSymptomToSheet(spreadsheetId, symptomData);
+
+      // Include profile_id if we're filtering by profile
+      const dataWithProfile = profileId ? { ...symptomData, profile_id: profileId } : symptomData;
+
+      const data = await addSymptomToSheet(spreadsheetId, dataWithProfile);
       console.log('✅ Symptom added successfully:', data);
 
       // Update local state
-      setSymptoms((prev) => [data, ...prev]);
+      setAllSymptoms((prev) => [data, ...prev]);
 
       return { data, error: null };
     } catch (err) {
@@ -81,7 +92,7 @@ export function useSymptoms(userId) {
       const data = await updateSymptomInSheet(spreadsheetId, symptomId, updates);
 
       // Update local state
-      setSymptoms((prev) => prev.map((s) => (s.id === symptomId ? data : s)));
+      setAllSymptoms((prev) => prev.map((s) => (s.id === symptomId ? data : s)));
 
       return { data, error: null };
     } catch (err) {
@@ -96,7 +107,7 @@ export function useSymptoms(userId) {
       await deleteSymptomFromSheet(spreadsheetId, symptomId);
 
       // Update local state
-      setSymptoms((prev) => prev.filter((s) => s.id !== symptomId));
+      setAllSymptoms((prev) => prev.filter((s) => s.id !== symptomId));
 
       return { error: null };
     } catch (err) {
@@ -107,6 +118,7 @@ export function useSymptoms(userId) {
 
   return {
     symptoms,
+    allSymptoms, // Expose all symptoms for cross-profile operations
     loading,
     error,
     addSymptom,
@@ -117,11 +129,18 @@ export function useSymptoms(userId) {
 }
 
 // Custom hook for managing entries
-export function useEntries(userId) {
-  const [entries, setEntries] = useState([]);
+// profileId: optional - if provided, filters entries by profile
+export function useEntries(userId, profileId = null) {
+  const [allEntries, setAllEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [spreadsheetId, setSpreadsheetId] = useState(null);
+
+  // Filter entries by profile
+  const entries = useMemo(() => {
+    if (!profileId) return allEntries;
+    return allEntries.filter((e) => e.profile_id === profileId);
+  }, [allEntries, profileId]);
 
   // Initialize spreadsheet and load entries
   const loadEntries = useCallback(async () => {
@@ -132,7 +151,7 @@ export function useEntries(userId) {
       setSpreadsheetId(sheetId);
 
       const data = await fetchEntriesFromSheet(sheetId);
-      setEntries(data || []);
+      setAllEntries(data || []);
     } catch (err) {
       console.error('Error loading entries:', err);
       setError(translateError(err));
@@ -149,7 +168,7 @@ export function useEntries(userId) {
       if (spreadsheetId) {
         fetchEntriesFromSheet(spreadsheetId)
           .then((data) => {
-            setEntries(data || []);
+            setAllEntries(data || []);
           })
           .catch((err) => {
             console.error('Error refreshing entries:', err);
@@ -161,13 +180,16 @@ export function useEntries(userId) {
     return () => clearInterval(interval);
   }, [userId, loadEntries, spreadsheetId]);
 
-  // Add entry
+  // Add entry (automatically includes profile_id if provided)
   const addEntry = async (entryData) => {
     try {
-      const data = await addEntryToSheet(spreadsheetId, entryData);
+      // Include profile_id if we're filtering by profile
+      const dataWithProfile = profileId ? { ...entryData, profile_id: profileId } : entryData;
+
+      const data = await addEntryToSheet(spreadsheetId, dataWithProfile);
 
       // Update local state and sort by timestamp (newest first)
-      setEntries((prev) => {
+      setAllEntries((prev) => {
         const updated = [data, ...prev];
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
@@ -185,7 +207,7 @@ export function useEntries(userId) {
       const data = await updateEntryInSheet(spreadsheetId, entryId, updates);
 
       // Update local state and re-sort by timestamp (newest first)
-      setEntries((prev) => {
+      setAllEntries((prev) => {
         const updated = prev.map((e) => (e.id === entryId ? data : e));
         return updated.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       });
@@ -203,7 +225,7 @@ export function useEntries(userId) {
       console.log('🔴 Deleting entry:', { entryId, userId });
 
       // Optimistically remove from UI immediately
-      setEntries((prev) => prev.filter((e) => e.id !== entryId));
+      setAllEntries((prev) => prev.filter((e) => e.id !== entryId));
 
       await deleteEntryFromSheet(spreadsheetId, entryId);
 
@@ -214,7 +236,7 @@ export function useEntries(userId) {
 
       // If delete failed, refetch to restore the entry
       const data = await fetchEntriesFromSheet(spreadsheetId);
-      setEntries(data || []);
+      setAllEntries(data || []);
 
       return { error: translateError(err) };
     }
@@ -222,6 +244,7 @@ export function useEntries(userId) {
 
   return {
     entries,
+    allEntries, // Expose all entries for cross-profile operations (e.g., patterns)
     loading,
     error,
     addEntry,

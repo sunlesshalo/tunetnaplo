@@ -9,9 +9,11 @@ if (!CLIENT_ID || !API_KEY) {
 }
 
 // Authorization scopes required
+// Note: 'drive' scope is needed for sharing files with other parents
+// 'drive.file' would only allow access to files created by this app
 const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive',
 ].join(' ');
 
 // Storage keys

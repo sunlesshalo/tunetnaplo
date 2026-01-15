@@ -302,3 +302,220 @@ export async function deletePhoto(fileId) {
 export async function deleteVoiceNote(fileId) {
   return deleteFile(fileId);
 }
+
+// ============================================
+// SHARING - Multi-parent support
+// ============================================
+
+/**
+ * Find the Tünetnapló folder ID
+ */
+async function findAppFolder() {
+  try {
+    const gapi = getGapi();
+    const response = await gapi.client.drive.files.list({
+      q: `name='Tünetnapló' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive',
+    });
+
+    const folders = response.result.files || [];
+    return folders.length > 0 ? folders[0].id : null;
+  } catch (error) {
+    console.error('Error finding app folder:', error);
+    return null;
+  }
+}
+
+/**
+ * Share the app's data with another parent by email
+ * Shares both the spreadsheet and the folder (including photos/voice subfolders)
+ * @param {string} spreadsheetId - The spreadsheet to share
+ * @param {string} email - The email address to share with
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export async function shareWithParent(spreadsheetId, email) {
+  try {
+    const gapi = getGapi();
+
+    // Share the spreadsheet with writer access
+    await gapi.client.drive.permissions.create({
+      fileId: spreadsheetId,
+      requestBody: {
+        type: 'user',
+        role: 'writer',
+        emailAddress: email,
+      },
+      sendNotificationEmail: true,
+    });
+
+    console.log(`✅ Shared spreadsheet with ${email}`);
+
+    // Find and share the Tünetnapló folder
+    const folderId = await findAppFolder();
+    if (folderId) {
+      await gapi.client.drive.permissions.create({
+        fileId: folderId,
+        requestBody: {
+          type: 'user',
+          role: 'writer',
+          emailAddress: email,
+        },
+      });
+
+      console.log(`✅ Shared folder with ${email}`);
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error sharing with parent:', error);
+    return { success: false, error: error.message || 'Nem sikerült megosztani' };
+  }
+}
+
+/**
+ * List users the spreadsheet is shared with
+ * @param {string} spreadsheetId - The spreadsheet to check
+ * @returns {Promise<Array<{id: string, email: string, role: string}>>}
+ */
+export async function getSharedUsers(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+
+    const response = await gapi.client.drive.permissions.list({
+      fileId: spreadsheetId,
+      fields: 'permissions(id, emailAddress, role, type)',
+    });
+
+    // Filter to only user permissions with writer role (exclude owner)
+    const permissions = response.result.permissions || [];
+    return permissions
+      .filter((p) => p.type === 'user' && p.role === 'writer')
+      .map((p) => ({
+        id: p.id,
+        email: p.emailAddress,
+        role: p.role,
+      }));
+  } catch (error) {
+    console.error('Error getting shared users:', error);
+    return [];
+  }
+}
+
+/**
+ * Remove a shared user's access
+ * @param {string} spreadsheetId - The spreadsheet to unshare
+ * @param {string} permissionId - The permission ID to remove
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export async function removeSharedUser(spreadsheetId, permissionId) {
+  try {
+    const gapi = getGapi();
+
+    // Remove from spreadsheet
+    await gapi.client.drive.permissions.delete({
+      fileId: spreadsheetId,
+      permissionId: permissionId,
+    });
+
+    // Also try to remove from folder
+    const folderId = await findAppFolder();
+    if (folderId) {
+      try {
+        // Find matching permission on folder
+        const folderPerms = await gapi.client.drive.permissions.list({
+          fileId: folderId,
+          fields: 'permissions(id, emailAddress)',
+        });
+
+        const spreadsheetPerms = await gapi.client.drive.permissions.get({
+          fileId: spreadsheetId,
+          permissionId: permissionId,
+          fields: 'emailAddress',
+        }).catch(() => null);
+
+        if (spreadsheetPerms?.result?.emailAddress) {
+          const matchingPerm = (folderPerms.result.permissions || []).find(
+            (p) => p.emailAddress === spreadsheetPerms.result.emailAddress
+          );
+
+          if (matchingPerm) {
+            await gapi.client.drive.permissions.delete({
+              fileId: folderId,
+              permissionId: matchingPerm.id,
+            });
+          }
+        }
+      } catch (folderError) {
+        // Folder permission removal is best-effort
+        console.warn('Could not remove folder permission:', folderError);
+      }
+    }
+
+    console.log('✅ Removed shared user');
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error removing shared user:', error);
+    return { success: false, error: error.message || 'Nem sikerült eltávolítani' };
+  }
+}
+
+/**
+ * Find spreadsheets shared with the current user (not owned by them)
+ * Used for Parent B to discover and join Parent A's family
+ * @returns {Promise<Array<{id: string, name: string, ownerEmail: string, ownerName: string}>>}
+ */
+export async function findSharedSpreadsheets() {
+  try {
+    const gapi = getGapi();
+
+    const response = await gapi.client.drive.files.list({
+      q: "name='Tünetnapló' and mimeType='application/vnd.google-apps.spreadsheet' and sharedWithMe=true and trashed=false",
+      fields: 'files(id, name, owners(displayName, emailAddress))',
+      spaces: 'drive',
+    });
+
+    const files = response.result.files || [];
+    return files.map((file) => ({
+      id: file.id,
+      name: file.name,
+      ownerEmail: file.owners?.[0]?.emailAddress || '',
+      ownerName: file.owners?.[0]?.displayName || '',
+    }));
+  } catch (error) {
+    console.error('Error finding shared spreadsheets:', error);
+    return [];
+  }
+}
+
+/**
+ * Join a shared spreadsheet (used by Parent B)
+ * Stores the shared spreadsheet ID for this user
+ * @param {string} userId - The current user's ID
+ * @param {string} spreadsheetId - The shared spreadsheet to join
+ */
+export function joinSharedSpreadsheet(userId, spreadsheetId) {
+  localStorage.setItem(`tunetnaplo_joined_spreadsheet_${userId}`, spreadsheetId);
+  // Clear any cached own spreadsheet ID so the shared one takes precedence
+  localStorage.removeItem(`tunetnaplo_spreadsheet_${userId}`);
+  console.log('✅ Joined shared spreadsheet:', spreadsheetId);
+}
+
+/**
+ * Get the joined spreadsheet ID if user has joined another family
+ * @param {string} userId - The current user's ID
+ * @returns {string|null} - The joined spreadsheet ID or null
+ */
+export function getJoinedSpreadsheetId(userId) {
+  return localStorage.getItem(`tunetnaplo_joined_spreadsheet_${userId}`);
+}
+
+/**
+ * Leave a shared spreadsheet (go back to own data)
+ * @param {string} userId - The current user's ID
+ */
+export function leaveSharedSpreadsheet(userId) {
+  localStorage.removeItem(`tunetnaplo_joined_spreadsheet_${userId}`);
+  localStorage.removeItem(`tunetnaplo_spreadsheet_${userId}`);
+  console.log('✅ Left shared spreadsheet');
+}

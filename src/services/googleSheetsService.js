@@ -10,6 +10,7 @@ const SPREADSHEET_NAME = 'Tünetnapló';
 const SYMPTOMS_SHEET_NAME = 'Symptoms';
 const ENTRIES_SHEET_NAME = 'Entries';
 const SETTINGS_SHEET_NAME = 'Settings';
+const PROFILES_SHEET_NAME = 'Profiles';
 const APP_FOLDER_NAME = 'Tünetnapló';
 
 /**
@@ -219,6 +220,14 @@ export async function findOrCreateSpreadsheet() {
             },
           },
         },
+        {
+          properties: {
+            title: PROFILES_SHEET_NAME,
+            gridProperties: {
+              frozenRowCount: 1,
+            },
+          },
+        },
       ],
     });
 
@@ -239,14 +248,15 @@ export async function findOrCreateSpreadsheet() {
 }
 
 /**
- * Initialize sheet headers
+ * Initialize sheet headers (includes profile_id for multi-child support)
  */
 async function initializeHeaders(spreadsheetId) {
-  const symptomsHeaders = [['id', 'name', 'emoji', 'parent_only', 'created_at', 'updated_at']];
+  const symptomsHeaders = [['id', 'name', 'emoji', 'parent_only', 'profile_id', 'created_at', 'updated_at']];
   const entriesHeaders = [
     [
       'id',
       'symptom_id',
+      'profile_id',
       'date',
       'timestamp',
       'intensity',
@@ -261,6 +271,7 @@ async function initializeHeaders(spreadsheetId) {
     ],
   ];
   const settingsHeaders = [['key', 'value', 'updated_at']];
+  const profilesHeaders = [['id', 'name', 'theme', 'avatar_emoji', 'created_at', 'updated_at']];
 
   await gapi.client.sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
@@ -268,16 +279,20 @@ async function initializeHeaders(spreadsheetId) {
       valueInputOption: 'RAW',
       data: [
         {
-          range: `${SYMPTOMS_SHEET_NAME}!A1:F1`,
+          range: `${SYMPTOMS_SHEET_NAME}!A1:G1`,
           values: symptomsHeaders,
         },
         {
-          range: `${ENTRIES_SHEET_NAME}!A1:M1`,
+          range: `${ENTRIES_SHEET_NAME}!A1:N1`,
           values: entriesHeaders,
         },
         {
           range: `${SETTINGS_SHEET_NAME}!A1:C1`,
           values: settingsHeaders,
+        },
+        {
+          range: `${PROFILES_SHEET_NAME}!A1:F1`,
+          values: profilesHeaders,
         },
       ],
     },
@@ -328,10 +343,32 @@ async function verifySpreadsheetExists(spreadsheetId) {
 }
 
 /**
+ * Get joined spreadsheet ID if user has joined another family
+ */
+function getJoinedSpreadsheetId(userId) {
+  return localStorage.getItem(`tunetnaplo_joined_spreadsheet_${userId}`);
+}
+
+/**
  * Get or initialize spreadsheet
  * Verifies cached spreadsheet still exists (handles folder merging scenarios)
+ * Also checks for joined spreadsheets (multi-parent support)
  */
 export async function getSpreadsheetId(userId) {
+  // First, check if user has joined another family's spreadsheet
+  const joinedId = getJoinedSpreadsheetId(userId);
+  if (joinedId) {
+    const exists = await verifySpreadsheetExists(joinedId);
+    if (exists) {
+      console.log('📎 Using joined spreadsheet:', joinedId);
+      return joinedId;
+    }
+    // Joined spreadsheet no longer accessible, clear it
+    localStorage.removeItem(`tunetnaplo_joined_spreadsheet_${userId}`);
+    console.log('⚠️ Joined spreadsheet no longer accessible, falling back to own');
+  }
+
+  // Check for cached own spreadsheet
   let spreadsheetId = getCachedSpreadsheetId(userId);
 
   if (spreadsheetId) {
@@ -361,13 +398,14 @@ function generateId() {
 
 /**
  * Fetch all symptoms
+ * After migration: id, name, emoji, parent_only, profile_id, created_at, updated_at
  */
 export async function fetchSymptoms(spreadsheetId) {
   try {
     const gapi = getGapi();
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SYMPTOMS_SHEET_NAME}!A2:F`,
+      range: `${SYMPTOMS_SHEET_NAME}!A2:G`,
     });
 
     const rows = response.result.values || [];
@@ -376,8 +414,9 @@ export async function fetchSymptoms(spreadsheetId) {
       name: row[1],
       emoji: row[2],
       parent_only: row[3] === 'TRUE',
-      created_at: row[4],
-      updated_at: row[5],
+      profile_id: row[4] || null,
+      created_at: row[5],
+      updated_at: row[6],
     }));
   } catch (error) {
     console.error('Error fetching symptoms:', error);
@@ -398,13 +437,14 @@ export async function addSymptom(spreadsheetId, symptomData) {
       symptomData.name,
       symptomData.emoji,
       symptomData.parent_only ? 'TRUE' : 'FALSE',
+      symptomData.profile_id || '',
       now,
       now,
     ];
 
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${SYMPTOMS_SHEET_NAME}!A:F`,
+      range: `${SYMPTOMS_SHEET_NAME}!A:G`,
       valueInputOption: 'RAW',
       resource: {
         values: [row],
@@ -416,6 +456,7 @@ export async function addSymptom(spreadsheetId, symptomData) {
       name: symptomData.name,
       emoji: symptomData.emoji,
       parent_only: symptomData.parent_only || false,
+      profile_id: symptomData.profile_id || null,
       created_at: now,
       updated_at: now,
     };
@@ -454,13 +495,14 @@ export async function updateSymptom(spreadsheetId, symptomId, updates) {
         : symptom.parent_only
         ? 'TRUE'
         : 'FALSE',
+      symptom.profile_id || '',
       symptom.created_at,
       now,
     ];
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SYMPTOMS_SHEET_NAME}!A${rowNumber}:F${rowNumber}`,
+      range: `${SYMPTOMS_SHEET_NAME}!A${rowNumber}:G${rowNumber}`,
       valueInputOption: 'RAW',
       resource: {
         values: [row],
@@ -561,13 +603,14 @@ export async function deleteSymptom(spreadsheetId, symptomId) {
 
 /**
  * Fetch all entries
+ * After migration: id, symptom_id, profile_id, date, timestamp, intensity, duration, note, context, environment, photos, voice_note, created_at, updated_at
  */
 export async function fetchEntries(spreadsheetId) {
   try {
     const gapi = getGapi();
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${ENTRIES_SHEET_NAME}!A2:M`,
+      range: `${ENTRIES_SHEET_NAME}!A2:N`,
     });
 
     const rows = response.result.values || [];
@@ -575,17 +618,18 @@ export async function fetchEntries(spreadsheetId) {
       .map((row) => ({
         id: row[0],
         symptom_id: row[1],
-        date: row[2],
-        timestamp: row[3],
-        intensity: parseInt(row[4]) || 0,
-        duration: row[5] ? parseInt(row[5]) : null,
-        note: row[6] || '',
-        context: row[7] ? JSON.parse(row[7]) : {},
-        environment: row[8] ? JSON.parse(row[8]) : null,
-        photos: row[9] ? JSON.parse(row[9]) : null,
-        voice_note: row[10] || null,
-        created_at: row[11],
-        updated_at: row[12],
+        profile_id: row[2] || null,
+        date: row[3],
+        timestamp: row[4],
+        intensity: parseInt(row[5]) || 0,
+        duration: row[6] ? parseInt(row[6]) : null,
+        note: row[7] || '',
+        context: row[8] ? JSON.parse(row[8]) : {},
+        environment: row[9] ? JSON.parse(row[9]) : null,
+        photos: row[10] ? JSON.parse(row[10]) : null,
+        voice_note: row[11] || null,
+        created_at: row[12],
+        updated_at: row[13],
       }))
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   } catch (error) {
@@ -605,6 +649,7 @@ export async function addEntry(spreadsheetId, entryData) {
     const row = [
       id,
       entryData.symptom_id,
+      entryData.profile_id || '',
       entryData.date,
       entryData.timestamp,
       entryData.intensity,
@@ -620,7 +665,7 @@ export async function addEntry(spreadsheetId, entryData) {
 
     await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${ENTRIES_SHEET_NAME}!A:M`,
+      range: `${ENTRIES_SHEET_NAME}!A:N`,
       valueInputOption: 'RAW',
       resource: {
         values: [row],
@@ -647,24 +692,25 @@ async function fetchEntriesRaw(spreadsheetId) {
     const gapi = getGapi();
     const response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${ENTRIES_SHEET_NAME}!A2:M`,
+      range: `${ENTRIES_SHEET_NAME}!A2:N`,
     });
 
     const rows = response.result.values || [];
     return rows.map((row) => ({
       id: row[0],
       symptom_id: row[1],
-      date: row[2],
-      timestamp: row[3],
-      intensity: parseInt(row[4]) || 0,
-      duration: row[5] ? parseInt(row[5]) : null,
-      note: row[6] || '',
-      context: row[7] ? JSON.parse(row[7]) : {},
-      environment: row[8] ? JSON.parse(row[8]) : null,
-      photos: row[9] ? JSON.parse(row[9]) : null,
-      voice_note: row[10] || null,
-      created_at: row[11],
-      updated_at: row[12],
+      profile_id: row[2] || null,
+      date: row[3],
+      timestamp: row[4],
+      intensity: parseInt(row[5]) || 0,
+      duration: row[6] ? parseInt(row[6]) : null,
+      note: row[7] || '',
+      context: row[8] ? JSON.parse(row[8]) : {},
+      environment: row[9] ? JSON.parse(row[9]) : null,
+      photos: row[10] ? JSON.parse(row[10]) : null,
+      voice_note: row[11] || null,
+      created_at: row[12],
+      updated_at: row[13],
     }));
   } catch (error) {
     console.error('Error fetching raw entries:', error);
@@ -693,6 +739,7 @@ export async function updateEntry(spreadsheetId, entryId, updates) {
     const row = [
       entry.id,
       updates.symptom_id !== undefined ? updates.symptom_id : entry.symptom_id,
+      entry.profile_id || '',
       updates.date !== undefined ? updates.date : entry.date,
       updates.timestamp !== undefined ? updates.timestamp : entry.timestamp,
       updates.intensity !== undefined ? updates.intensity : entry.intensity,
@@ -708,7 +755,7 @@ export async function updateEntry(spreadsheetId, entryId, updates) {
 
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${ENTRIES_SHEET_NAME}!A${rowNumber}:M${rowNumber}`,
+      range: `${ENTRIES_SHEET_NAME}!A${rowNumber}:N${rowNumber}`,
       valueInputOption: 'RAW',
       resource: {
         values: [row],
@@ -964,5 +1011,388 @@ export async function deleteAllData() {
   } catch (error) {
     console.error('Error deleting all data:', error);
     return { success: false, error: error.message || 'Ismeretlen hiba történt' };
+  }
+}
+
+// ============================================
+// PROFILES - Multi-child support
+// ============================================
+
+/**
+ * Check if Profiles sheet exists
+ */
+async function checkProfilesSheetExists(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+    const response = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+
+    const sheets = response.result.sheets || [];
+    return sheets.some((s) => s.properties.title === PROFILES_SHEET_NAME);
+  } catch (error) {
+    console.error('Error checking Profiles sheet:', error);
+    return false;
+  }
+}
+
+/**
+ * Create the Profiles sheet
+ */
+async function createProfilesSheet(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: PROFILES_SHEET_NAME,
+                gridProperties: {
+                  frozenRowCount: 1,
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    // Initialize headers
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${PROFILES_SHEET_NAME}!A1:F1`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [['id', 'name', 'theme', 'avatar_emoji', 'created_at', 'updated_at']],
+      },
+    });
+
+    console.log('✅ Created Profiles sheet');
+  } catch (error) {
+    console.error('Error creating Profiles sheet:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch all profiles
+ */
+export async function fetchProfiles(spreadsheetId) {
+  try {
+    const gapi = getGapi();
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${PROFILES_SHEET_NAME}!A2:F`,
+    });
+
+    const rows = response.result.values || [];
+    return rows.map((row) => ({
+      id: row[0],
+      name: row[1],
+      theme: row[2] || 'sky',
+      avatar_emoji: row[3] || '🧒',
+      created_at: row[4],
+      updated_at: row[5],
+    }));
+  } catch (error) {
+    console.error('Error fetching profiles:', error);
+    return [];
+  }
+}
+
+/**
+ * Add a new profile
+ */
+export async function addProfile(spreadsheetId, profileData) {
+  try {
+    const gapi = getGapi();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const row = [
+      id,
+      profileData.name,
+      profileData.theme || 'sky',
+      profileData.avatar_emoji || '🧒',
+      now,
+      now,
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${PROFILES_SHEET_NAME}!A:F`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [row],
+      },
+    });
+
+    console.log('✅ Created profile:', profileData.name);
+
+    return {
+      id,
+      name: profileData.name,
+      theme: profileData.theme || 'sky',
+      avatar_emoji: profileData.avatar_emoji || '🧒',
+      created_at: now,
+      updated_at: now,
+    };
+  } catch (error) {
+    console.error('Error adding profile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a profile
+ */
+export async function updateProfile(spreadsheetId, profileId, updates) {
+  try {
+    const gapi = getGapi();
+    const profiles = await fetchProfiles(spreadsheetId);
+    const index = profiles.findIndex((p) => p.id === profileId);
+
+    if (index === -1) {
+      throw new Error('Profile not found');
+    }
+
+    const rowNumber = index + 2;
+    const profile = profiles[index];
+    const now = new Date().toISOString();
+
+    const row = [
+      profile.id,
+      updates.name !== undefined ? updates.name : profile.name,
+      updates.theme !== undefined ? updates.theme : profile.theme,
+      updates.avatar_emoji !== undefined ? updates.avatar_emoji : profile.avatar_emoji,
+      profile.created_at,
+      now,
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${PROFILES_SHEET_NAME}!A${rowNumber}:F${rowNumber}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [row],
+      },
+    });
+
+    console.log('✅ Updated profile:', updates.name || profile.name);
+
+    return {
+      ...profile,
+      ...updates,
+      updated_at: now,
+    };
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a profile (and optionally cascade delete related data)
+ */
+export async function deleteProfile(spreadsheetId, profileId, cascadeDelete = false) {
+  try {
+    const gapi = getGapi();
+
+    if (cascadeDelete) {
+      // Delete all entries for this profile
+      const entries = await fetchEntriesRaw(spreadsheetId);
+      const profileEntries = entries.filter((e) => e.profile_id === profileId);
+      for (let i = profileEntries.length - 1; i >= 0; i--) {
+        await deleteEntry(spreadsheetId, profileEntries[i].id);
+      }
+
+      // Delete all symptoms for this profile
+      const symptoms = await fetchSymptoms(spreadsheetId);
+      const profileSymptoms = symptoms.filter((s) => s.profile_id === profileId);
+      for (let i = profileSymptoms.length - 1; i >= 0; i--) {
+        await deleteSymptom(spreadsheetId, profileSymptoms[i].id);
+      }
+    }
+
+    // Delete the profile itself
+    const profiles = await fetchProfiles(spreadsheetId);
+    const index = profiles.findIndex((p) => p.id === profileId);
+
+    if (index === -1) {
+      throw new Error('Profile not found');
+    }
+
+    const rowNumber = index + 2;
+    const sheetId = await getSheetIdByName(spreadsheetId, PROFILES_SHEET_NAME);
+
+    if (sheetId === null) {
+      throw new Error('Profiles sheet not found');
+    }
+
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: 'ROWS',
+                startIndex: rowNumber - 1,
+                endIndex: rowNumber,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    console.log('✅ Deleted profile');
+  } catch (error) {
+    console.error('Error deleting profile:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add a column to an existing sheet
+ */
+async function addColumnToSheet(spreadsheetId, sheetName, columnName, columnIndex) {
+  try {
+    const gapi = getGapi();
+    const sheetId = await getSheetIdByName(spreadsheetId, sheetName);
+
+    if (sheetId === null) {
+      console.warn(`Sheet ${sheetName} not found, skipping column addition`);
+      return;
+    }
+
+    // Insert the column
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            insertDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: 'COLUMNS',
+                startIndex: columnIndex,
+                endIndex: columnIndex + 1,
+              },
+              inheritFromBefore: false,
+            },
+          },
+        ],
+      },
+    });
+
+    // Add header for the new column
+    const columnLetter = String.fromCharCode(65 + columnIndex); // A=0, B=1, etc.
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!${columnLetter}1`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [[columnName]],
+      },
+    });
+
+    console.log(`✅ Added column '${columnName}' to ${sheetName}`);
+  } catch (error) {
+    console.error(`Error adding column to ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Backfill a column with a value for all existing rows
+ */
+async function backfillColumn(spreadsheetId, sheetName, columnIndex, value) {
+  try {
+    const gapi = getGapi();
+
+    // Get all rows (excluding header)
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A2:A`,
+    });
+
+    const rows = response.result.values || [];
+    if (rows.length === 0) {
+      console.log(`No rows to backfill in ${sheetName}`);
+      return;
+    }
+
+    // Create values array with the same value for each row
+    const columnLetter = String.fromCharCode(65 + columnIndex);
+    const values = rows.map(() => [value]);
+
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!${columnLetter}2:${columnLetter}${rows.length + 1}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: values,
+      },
+    });
+
+    console.log(`✅ Backfilled ${rows.length} rows in ${sheetName} with profile_id`);
+  } catch (error) {
+    console.error(`Error backfilling column in ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Ensure multi-profile support is set up (migration for existing users)
+ * This adds the Profiles sheet and profile_id columns to Symptoms/Entries
+ */
+export async function ensureMultiProfileSupport(spreadsheetId) {
+  try {
+    // Check if already migrated
+    const profilesExist = await checkProfilesSheetExists(spreadsheetId);
+    if (profilesExist) {
+      return; // Already set up
+    }
+
+    console.log('🔄 Migrating to multi-profile support...');
+
+    // 1. Create Profiles sheet
+    await createProfilesSheet(spreadsheetId);
+
+    // 2. Get current settings for default profile
+    const settings = await fetchSharedSettings(spreadsheetId);
+
+    // 3. Create default profile from existing userName
+    const defaultProfile = await addProfile(spreadsheetId, {
+      name: settings.userName || 'Gyermek',
+      theme: settings.theme || 'sky',
+      avatar_emoji: '🧒',
+    });
+
+    // 4. Add profile_id column to Symptoms sheet (column E, index 4)
+    // Current: id, name, emoji, parent_only, created_at, updated_at
+    // New: id, name, emoji, parent_only, profile_id, created_at, updated_at
+    await addColumnToSheet(spreadsheetId, SYMPTOMS_SHEET_NAME, 'profile_id', 4);
+
+    // 5. Add profile_id column to Entries sheet (column C, index 2)
+    // Current: id, symptom_id, date, timestamp, ...
+    // New: id, symptom_id, profile_id, date, timestamp, ...
+    await addColumnToSheet(spreadsheetId, ENTRIES_SHEET_NAME, 'profile_id', 2);
+
+    // 6. Backfill existing data with default profile ID
+    await backfillColumn(spreadsheetId, SYMPTOMS_SHEET_NAME, 4, defaultProfile.id);
+    await backfillColumn(spreadsheetId, ENTRIES_SHEET_NAME, 2, defaultProfile.id);
+
+    console.log('✅ Migration to multi-profile support complete');
+    return defaultProfile;
+  } catch (error) {
+    console.error('Error during multi-profile migration:', error);
+    throw error;
   }
 }

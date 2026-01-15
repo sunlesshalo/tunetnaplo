@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { signOut } from "../../googleClient";
 import { getGreeting } from "../../hooks/useSettings";
 
-export default function Header({ isChild, session, userName, onOpenSettings, onOpenFeedback }) {
+export default function Header({ isChild, session, userName, onOpenSettings, onOpenFeedback, profileSwitcher }) {
   const handleSignOut = async () => {
     await signOut();
     window.location.reload(); // Reload to clear state
@@ -33,7 +33,19 @@ export default function Header({ isChild, session, userName, onOpenSettings, onO
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Profile switcher for parent mode */}
+          {!isChild && profileSwitcher}
+
           {isChild && onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
+              aria-label="Beállítások"
+            >
+              <span className="text-lg">⚙️</span>
+            </button>
+          )}
+          {!isChild && onOpenSettings && (
             <button
               onClick={onOpenSettings}
               className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"

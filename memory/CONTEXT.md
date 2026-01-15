@@ -1,5 +1,30 @@
 # Session Log
 
+## 2026-01-15 (Session 3)
+**Accomplished:**
+- Implemented multi-parent and multi-child support
+- Created Profiles sheet structure (id, name, theme, avatar_emoji, created_at, updated_at)
+- Added profile_id column to Symptoms and Entries sheets
+- Created migration function `ensureMultiProfileSupport()` for existing users
+- Updated OAuth scope from `drive.file` to `drive` for sharing
+- Created new components:
+  - ProfileContext.jsx - Profile state management
+  - ProfilePickerModal.jsx - Child profile selection on login
+  - ProfileSwitcher.jsx - Parent header dropdown
+  - AddProfileModal.jsx - Add new child profile
+  - ShareSettingsSection.jsx - Share with another parent
+  - ParentSettingsModal.jsx - Parent settings with sharing tab
+- Updated useGoogleData.js to filter by activeProfile
+- Added sharing functions to googleDriveService.js
+- Updated Header.jsx to support profileSwitcher prop
+- Integrated profiles into ChildView and ParentView
+
+**Build:** Successful
+
+**Next:** Test with real users, verify sharing flow works
+
+---
+
 ## 2026-01-15 (Session 2)
 **Accomplished:**
 - Fixed settings to only save theme on "Mentés" button (not every color click)
@@ -44,6 +69,10 @@ Tag entries for easy searching:
 
 ## Technical
 
+- [decision] Multi-child: Profiles sheet with profile_id foreign key in Symptoms/Entries
+- [decision] Multi-parent: Google Drive sharing API (requires `drive` scope instead of `drive.file`)
+- [decision] Auto-migration for existing users via `ensureMultiProfileSupport()` in googleSheetsService.js
+- [discovery] Parent B joins by finding shared spreadsheets and storing selection in localStorage
 - [error] Entry update/delete modifying wrong rows → `fetchEntries` sorted by timestamp, but row index used sorted position. Fixed with `fetchEntriesRaw()` for internal operations
 - [error] Entries not chronologically ordered after edit → Added re-sort after add/update in useGoogleData.js
 - [decision] Error messages translated to Hungarian via `translateError()` in utils/errorMessages.js

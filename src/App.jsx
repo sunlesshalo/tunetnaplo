@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { initGoogleClient, onAuthStateChanged, isSignedIn, getCurrentUser } from "./googleClient";
+import { ProfileProvider } from "./contexts/ProfileContext";
 import Auth from "./Auth";
 import ChildView from "./components/views/ChildView";
 import ParentView from "./components/views/ParentView";
@@ -63,9 +64,11 @@ export default function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={<ChildView session={session} />} />
-      <Route path="/szulo" element={<ParentView session={session} />} />
-    </Routes>
+    <ProfileProvider userId={session.user.id}>
+      <Routes>
+        <Route path="/" element={<ChildView session={session} />} />
+        <Route path="/szulo" element={<ParentView session={session} />} />
+      </Routes>
+    </ProfileProvider>
   );
 }

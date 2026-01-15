@@ -1,7 +1,7 @@
 {
   "project": "Tunetnaplo",
   "updated": "2026-01-15",
-  "current_focus": "Beta testing with testers",
+  "current_focus": "Multi-profile and multi-parent support completed",
   "tasks": [
     {
       "id": 1,
@@ -47,6 +47,15 @@
       "blocked_by": "",
       "created": "2026-01-15",
       "completed": ""
+    },
+    {
+      "id": 6,
+      "task": "Implement multi-parent and multi-child support",
+      "status": "completed",
+      "notes": "Profiles sheet, profile_id filtering, sharing via Drive API, ProfileContext, ProfilePickerModal, ProfileSwitcher, ShareSettingsSection, ParentSettingsModal",
+      "blocked_by": "",
+      "created": "2026-01-15",
+      "completed": "2026-01-15"
     }
   ],
   "_schema": {

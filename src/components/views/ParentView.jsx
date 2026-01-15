@@ -10,29 +10,41 @@ import LogModal from "../entries/LogModal";
 import FeedbackModal from "../shared/FeedbackModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import OfflineBanner from "../shared/OfflineBanner";
+import ProfileSwitcher from "../shared/ProfileSwitcher";
+import AddProfileModal from "../shared/AddProfileModal";
+import ParentSettingsModal from "../shared/ParentSettingsModal";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { countEntriesForSymptom } from "../../services/googleSheetsService";
 import { getSpreadsheetId } from "../../services/googleSheetsService";
 import { useEntryModal } from "../../hooks/useEntryModal";
 import { useSettings } from "../../hooks/useSettings";
+import { useProfiles } from "../../contexts/ProfileContext";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
   const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showAddProfile, setShowAddProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [addingProfile, setAddingProfile] = useState(false);
 
   // Use Google Sheets hooks for data
   const userId = session?.user?.id;
 
+  // Profiles - multi-child support
+  const { profiles, activeProfile, selectProfile, addProfile, loading: profilesLoading, spreadsheetId } = useProfiles();
+
   // Apply theme from settings (synced via Google Sheets)
   useSettings(userId);
+
+  // Filter data by active profile
   const {
     symptoms,
     loading: symptomsLoading,
     addSymptom,
     updateSymptom: updateSymptomDB,
     deleteSymptom: deleteSymptomDB
-  } = useSymptoms(userId);
+  } = useSymptoms(userId, activeProfile?.id);
 
   const {
     entries,
@@ -40,7 +52,7 @@ export default function ParentView({ session }) {
     addEntry,
     updateEntry,
     deleteEntry: deleteEntryDB
-  } = useEntries(userId);
+  } = useEntries(userId, activeProfile?.id);
 
   const {
     activeSymptom,
@@ -150,10 +162,49 @@ export default function ParentView({ session }) {
     }
   };
 
+  const handleAddProfile = async (profileData) => {
+    setAddingProfile(true);
+    try {
+      const newProfile = await addProfile(profileData);
+      // Auto-select the new profile
+      selectProfile(newProfile);
+      return { error: null };
+    } catch (error) {
+      return { error: error.message || 'Nem sikerült hozzáadni' };
+    } finally {
+      setAddingProfile(false);
+    }
+  };
+
+  // Show loading while profiles are being loaded
+  if (profilesLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <p className="text-slate-600">Betöltés...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-theme-50 to-theme-50 text-slate-800 flex flex-col">
       <OfflineBanner />
-      <Header isChild={false} session={session} onOpenFeedback={() => setShowFeedback(true)} />
+      <Header
+        isChild={false}
+        session={session}
+        onOpenFeedback={() => setShowFeedback(true)}
+        onOpenSettings={() => setShowSettings(true)}
+        profileSwitcher={
+          <ProfileSwitcher
+            profiles={profiles}
+            activeProfile={activeProfile}
+            onSelect={selectProfile}
+            onAddProfile={() => setShowAddProfile(true)}
+          />
+        }
+      />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-28">
         {tab === 0 && (
@@ -236,6 +287,21 @@ export default function ParentView({ session }) {
       <FeedbackModal
         isOpen={showFeedback}
         onClose={() => setShowFeedback(false)}
+      />
+
+      <AddProfileModal
+        isOpen={showAddProfile}
+        onClose={() => setShowAddProfile(false)}
+        onAdd={handleAddProfile}
+        isLoading={addingProfile}
+      />
+
+      <ParentSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        spreadsheetId={spreadsheetId}
+        activeProfile={activeProfile}
+        profiles={profiles}
       />
     </div>
   );
