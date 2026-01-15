@@ -1,25 +1,25 @@
 {
   "project": "Tunetnaplo",
-  "updated": "2026-01-06",
-  "current_focus": "Beta testing preparation",
+  "updated": "2026-01-15",
+  "current_focus": "Beta testing with testers",
   "tasks": [
     {
       "id": 1,
       "task": "Test theme colors on deployed version",
-      "status": "pending",
-      "notes": "Theme picker should now change UI colors across all components",
+      "status": "completed",
+      "notes": "Theme picker changes UI colors, saves only on 'Mentés'",
       "blocked_by": "",
       "created": "2026-01-06",
-      "completed": ""
+      "completed": "2026-01-15"
     },
     {
       "id": 2,
       "task": "Add offline support (PWA)",
-      "status": "pending",
-      "notes": "Service worker for offline symptom logging",
+      "status": "completed",
+      "notes": "manifest.json, icons, service worker, Apple touch icon - users can 'Add to Home Screen'",
       "blocked_by": "",
       "created": "2026-01-06",
-      "completed": ""
+      "completed": "2026-01-15"
     },
     {
       "id": 3,
@@ -28,6 +28,24 @@
       "notes": "Streaks, achievements, positive reinforcement",
       "blocked_by": "",
       "created": "2026-01-06",
+      "completed": ""
+    },
+    {
+      "id": 4,
+      "task": "Share app with beta testers",
+      "status": "in_progress",
+      "notes": "URL: tunetnaplo.vercel.app - can install as PWA",
+      "blocked_by": "",
+      "created": "2026-01-15",
+      "completed": ""
+    },
+    {
+      "id": 5,
+      "task": "Add VITE_FORMSPREE_ID to Vercel env vars",
+      "status": "pending",
+      "notes": "Value: mvzzgzra - needed for production feedback form",
+      "blocked_by": "",
+      "created": "2026-01-15",
       "completed": ""
     }
   ],

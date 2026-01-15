@@ -1,5 +1,23 @@
 # Session Log
 
+## 2026-01-15 (Session 2)
+**Accomplished:**
+- Fixed settings to only save theme on "Mentés" button (not every color click)
+- Added date/time editing for log entries (retroactive logging)
+- Fixed critical bug: entry update/delete was using sorted index instead of raw row position
+- Added chronological re-sorting after add/update entries
+- Added offline detection banner with Hungarian message
+- Added Hungarian error message translations (`translateError()`)
+- Added in-app feedback form via Formspree
+- Added PWA support: manifest.json, icons (192/512), service worker, Apple touch icon
+- Separated parent/child settings access (parents get ✉️ feedback only, children get ⚙️ settings)
+
+**Deployed:** All changes pushed to main, auto-deployed via Vercel
+
+**Next:** Share with beta testers, gather feedback
+
+---
+
 ## 2026-01-06 (Session 1)
 **Accomplished:**
 - Fixed double-logging race condition in useEntryModal.js using useRef
@@ -26,6 +44,12 @@ Tag entries for easy searching:
 
 ## Technical
 
+- [error] Entry update/delete modifying wrong rows → `fetchEntries` sorted by timestamp, but row index used sorted position. Fixed with `fetchEntriesRaw()` for internal operations
+- [error] Entries not chronologically ordered after edit → Added re-sort after add/update in useGoogleData.js
+- [decision] Error messages translated to Hungarian via `translateError()` in utils/errorMessages.js
+- [decision] Offline detection via `useOnlineStatus` hook + amber banner
+- [decision] Feedback via Formspree (VITE_FORMSPREE_ID) - email not exposed in frontend
+- [decision] PWA: manifest.json + icons + service worker for installable app experience
 - [error] Double-logging entries → Fixed with useRef for synchronous check in useEntryModal.js
 - [error] Blank page on Vercel → Missing env vars (VITE_GOOGLE_CLIENT_ID, VITE_GOOGLE_API_KEY)
 - [error] Google OAuth auto-selects work account → Changed `prompt: 'consent'` to `prompt: 'select_account'`
