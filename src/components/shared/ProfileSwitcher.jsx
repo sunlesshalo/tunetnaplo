@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 /**
- * Dropdown component for parents to switch between child profiles
+ * Simple child avatar button that opens a modal for switching children
  * Shows in the parent view header
  */
 export default function ProfileSwitcher({
@@ -25,23 +25,26 @@ export default function ProfileSwitcher({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const hasMultipleProfiles = profiles && profiles.length > 1;
-
   return (
     <div className="relative" ref={dropdownRef}>
+      {/* Child avatar button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+        className="flex items-center gap-2 px-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+        aria-label="Gyermek váltása"
       >
-        <span className="text-lg">{activeProfile?.avatar_emoji || '🧒'}</span>
-        <span className="font-medium text-white">{activeProfile?.name || 'Gyermek'}</span>
-        <span className="text-xs text-white/70">▼</span>
+        <span className="text-xl">{activeProfile?.avatar_emoji || '🧒'}</span>
+        <span className="text-sm font-medium text-slate-700 max-w-[80px] truncate">
+          {activeProfile?.name || 'Gyermek'}
+        </span>
+        <span className="text-xs text-slate-400">▼</span>
       </button>
 
+      {/* Dropdown */}
       {isOpen && (
         <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl py-2 min-w-[200px] z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="px-3 py-1.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
-            {hasMultipleProfiles ? 'Gyermekek' : 'Aktív profil'}
+            Gyermekek
           </div>
 
           {profiles?.map((profile) => (
@@ -65,21 +68,17 @@ export default function ProfileSwitcher({
             </button>
           ))}
 
-          {onAddProfile && (
-            <>
-              <div className="border-t border-slate-100 my-2" />
-              <button
-                onClick={() => {
-                  onAddProfile();
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-theme hover:bg-theme/5 transition-colors"
-              >
-                <span className="text-xl">➕</span>
-                <span className="font-medium">Új gyermek hozzáadása</span>
-              </button>
-            </>
-          )}
+          <div className="border-t border-slate-100 my-2" />
+          <button
+            onClick={() => {
+              onAddProfile?.();
+              setIsOpen(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-theme hover:bg-theme/5 transition-colors"
+          >
+            <span className="text-xl">➕</span>
+            <span className="font-medium">Új gyermek</span>
+          </button>
         </div>
       )}
     </div>

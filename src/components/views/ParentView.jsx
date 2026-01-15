@@ -292,8 +292,6 @@ export default function ParentView({ session }) {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         spreadsheetId={spreadsheetId}
-        activeProfile={activeProfile}
-        profiles={profiles}
       />
     </div>
   );
