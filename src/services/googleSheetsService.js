@@ -301,8 +301,9 @@ async function initializeHeaders(spreadsheetId) {
 
 /**
  * Get cached spreadsheet ID from localStorage
+ * Exported for checking if user is new (no spreadsheet yet)
  */
-function getCachedSpreadsheetId(userId) {
+export function getCachedSpreadsheetId(userId) {
   return localStorage.getItem(`tunetnaplo_spreadsheet_${userId}`);
 }
 
