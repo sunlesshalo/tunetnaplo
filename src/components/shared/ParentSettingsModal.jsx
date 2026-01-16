@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { signOut } from '../../googleClient';
 import { shareWithParent, getSharedUsers, removeSharedUser } from '../../services/googleDriveService';
 import FeedbackModal from './FeedbackModal';
@@ -13,7 +12,6 @@ export default function ParentSettingsModal({
   onClose,
   spreadsheetId,
 }) {
-  const navigate = useNavigate();
   const [showFeedback, setShowFeedback] = useState(false);
 
   // Sharing state
@@ -86,11 +84,6 @@ export default function ParentSettingsModal({
     } catch (err) {
       setShareError('Nem sikerült eltávolítani');
     }
-  };
-
-  const handleSwitchToChild = () => {
-    onClose();
-    navigate('/');
   };
 
   const handleSignOut = async () => {
@@ -181,15 +174,6 @@ export default function ParentSettingsModal({
 
           {/* Actions */}
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={handleSwitchToChild}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-theme/10 hover:bg-theme/20 transition-colors"
-            >
-              <span className="text-xl">🧸</span>
-              <span className="font-medium text-theme">Gyerek mód</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setShowFeedback(true)}

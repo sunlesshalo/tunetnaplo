@@ -2,16 +2,15 @@ import React, { useState } from "react";
 import Header from "../layout/Header";
 import ParentBottomNav from "../layout/ParentBottomNav";
 import HomeTab from "./HomeTab";
-import AddSymptomTab from "../symptoms/AddSymptomTab";
-import ManageEntriesTab from "./parent-tabs/ManageEntriesTab";
-import PatternsTab from "../stats/PatternsTab";
-import ExportTab from "./parent-tabs/ExportTab";
+import ManageTab from "./parent-tabs/ManageTab";
+import InsightsTab from "./parent-tabs/InsightsTab";
 import LogModal from "../entries/LogModal";
 import FeedbackBanner from "../shared/FeedbackBanner";
 import OfflineBanner from "../shared/OfflineBanner";
 import ProfileSwitcher from "../shared/ProfileSwitcher";
 import AddProfileModal from "../shared/AddProfileModal";
 import ParentSettingsModal from "../shared/ParentSettingsModal";
+import FloatingActionButton from "../shared/FloatingActionButton";
 import { useSymptoms, useEntries } from "../../hooks/useGoogleData";
 import { countEntriesForSymptom } from "../../services/googleSheetsService";
 import { getSpreadsheetId } from "../../services/googleSheetsService";
@@ -21,7 +20,7 @@ import { useProfiles } from "../../contexts/ProfileContext";
 import { captureEnvironment, confirmDeleteEntry } from "../../utils/helpers";
 
 export default function ParentView({ session }) {
-  const [tab, setTab] = useState(0); // 0: Főlista, 1: Tünetek, 2: Bejegyzések, 3: Mintázatok, 4: Export
+  const [tab, setTab] = useState(0); // 0: Kezdőlap, 1: Kezelés, 2: Elemzés
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
@@ -216,32 +215,35 @@ export default function ParentView({ session }) {
           />
         )}
         {tab === 1 && (
-          <AddSymptomTab
-            onAdd={async (symptomData) => {
+          <ManageTab
+            symptoms={symptoms}
+            entries={entries}
+            onAddSymptom={async (symptomData) => {
               const { error } = await addSymptom(symptomData);
               if (error) {
                 alert(`Hiba a tünet hozzáadásánál: ${error}`);
               }
             }}
-            symptoms={symptoms}
-            onDelete={deleteSymptom}
-            onUpdate={updateSymptom}
+            onUpdateSymptom={updateSymptom}
+            onDeleteSymptom={deleteSymptom}
+            onEditEntry={openEditModal}
+            onDeleteEntry={handleDeleteEntry}
+            onBulkDeleteEntries={handleBulkDeleteEntries}
           />
         )}
         {tab === 2 && (
-          <ManageEntriesTab
-            entries={entries}
-            symptoms={symptoms}
-            onDelete={handleDeleteEntry}
-            onEdit={openEditModal}
-            onBulkDelete={handleBulkDeleteEntries}
-          />
+          <InsightsTab entries={entries} symptoms={symptoms} />
         )}
-        {tab === 3 && <PatternsTab entries={entries} symptoms={symptoms} />}
-        {tab === 4 && <ExportTab entries={entries} symptoms={symptoms} />}
 
         <FeedbackBanner variant="parent" />
       </main>
+
+      {/* Floating Action Button for quick logging */}
+      <FloatingActionButton
+        symptoms={symptoms}
+        onLogSymptom={openLogModal}
+        onAddSymptom={() => setTab(1)}
+      />
 
       <ParentBottomNav tab={tab} setTab={setTab} />
 
